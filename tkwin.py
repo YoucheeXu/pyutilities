@@ -3,8 +3,8 @@
 import tkinter as tk
 import tkinter.messagebox as tkMessageBox
 import tkinter.ttk as ttk
+# import tkinter.tix as tix
 
-# import xml.dom.minidom
 try:
     import xml.etree.cElementTree as et
 except ImportError:
@@ -17,6 +17,9 @@ except ImportError:
     from pyutilities.logit import pv
     from pyutilities.matplot import MatPlot
 
+# from PIL import Image, ImageTk	# for imgButton
+import PIL
+import cv2	# for imgPannel
 
 # https://github.com/xinetzone/tkinter_action/blob/master/app/tools/tips.py
 class ToolTip:
@@ -77,7 +80,7 @@ class ToolTip:
             
     def __showtip(self):
         """
-        创建一个带有工具提示文本的 topoltip 窗口
+            创建一个带有工具提示文本的 topoltip 窗口
         """
         params = {
             'text': self.__text, 
@@ -92,7 +95,7 @@ class ToolTip:
             
     def __schedule(self):
         """
-        安排计时器以计时鼠标悬停的时间
+            安排计时器以计时鼠标悬停的时间
         """
         self.__id_after = self.__widget.after(self.__timeout, self.__showtip)
         
@@ -127,13 +130,36 @@ class ToolTip:
         self.__unschedule()
         self.__hidetip()
 
-'''
-TODO:
-    0. lenged
-    1. RatioButtonGoup
-    2. EntryGroup
-    3. ImageButton
-'''
+class Toolbar(tk.Frame):
+    def __init__(self, parent, resPath):
+        # super().__init__(self.__parent)
+        self.__parent = parent
+        # tk.Frame.__init__(self, parent)
+        super().__init__(self.__parent)
+        self.__resPath = resPath
+        # self.__tooltip = tix.Balloon(root)
+
+class ImgPanel(tk.Label):
+    def __init__(self, parent, text="Image Panel"):
+        self.__parent = parent
+        # tk.Label.__init__(self, parent)
+        super().__init__(self.__parent)
+        self.configure(text=text, anchor = tk.CENTER)
+
+    def display_image(self, image):
+        # OpenCV represents images in BGR order; however PIL represents
+        # images in RGB order, so we need to swap the channels
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # convert the images to PIL format...
+        image = PIL.Image.fromarray(image)
+        # ...and then to ImageTk format
+        image = PIL.ImageTk.PhotoImage(image)
+
+        self.configure(image = image)
+        self.__image = image
+
+
 class tkWin(tk.Frame):
     def __init__(self):
         self._frmApp = tk.Tk()
@@ -169,12 +195,17 @@ class tkWin(tk.Frame):
     def show_info(self, title, info):
         tkMessageBox.showinfo(title, info)
 
+    def _btnExitApplicationClick(self):	
+        self.exit_window()
+
     def exit_window(self):
         res = tkMessageBox.askquestion('Exit Application', 'Do you really want to exit?')
         if res == 'yes':
             self._frmApp.destroy()
 
     def create_window(self, cfgFile):
+        self.__resPath = os.path.dirname(cfgFile)
+
         elementTree = et.parse(cfgFile)
         winRoot = elementTree.getroot()
         self._title = winRoot.attrib["Title"]
@@ -185,79 +216,90 @@ class tkWin(tk.Frame):
         self.__center_window(width, hight)
 
         for frm in list(winRoot):
-            tag = frm.tag
-            titleFrm = frm.attrib["text"]
-            pv(titleFrm)
-            if tag == "LabelFrame":
-                frame = tk.LabelFrame(self._frmApp, text=titleFrm)
-            elif tag == "Frame":
-                frame = tk.Frame(self._frmApp)
-            else:
-                self.__create_control(self._frmApp, tag, frm.attrib)
-                continue
+            frame = self.__create_control(self._frmApp, frm)
             # pv(list(frm))
+            tag = frm.tag
+            if tag == "Frame" or tag == "LabelFrame":
+                for control in list(frm):
+                    ctrl = self.__create_control(frame, control)
+                    self.__assemble_control(ctrl, control.attrib)
 
-            posFrm = frm.attrib["pos"]
-            xPadFrm = eval(frm.attrib["xPad"])
-            yPadFrm = eval(frm.attrib["yPad"])			
-            for control in list(frm):
-                tag = control.tag
-                self.__create_control(frame, tag, control.attrib)
-
-            frame.pack(side=posFrm, fill=tk.BOTH, expand=True, padx=xPadFrm, pady=yPadFrm)
+            self.__assemble_control(frame, frm.attrib)
 
     def __assemble_control(self, ctrl, atrDict):
-        layout = atrDict["layout"]
-        if layout == "grid":
-            row, column = eval(atrDict["pos"])
-            ctrl.grid(row=row, column=column, sticky=tk.W)
-        elif layout == "pack":
-            ctrl.pack(side=atrDict["pos"], fill=tk.BOTH, expand=True, padx=eval(atrDict["xPad"]), pady=eval(atrDict["yPad"]))
+        # pv(atrDict)
+        if (atrDict["layout"] == "pack"):
+            layout = "pack"
+            ctrl.pack(**(eval(atrDict["pack"])))
+        elif (atrDict["layout"] == "grid"):
+            ctrl.grid(**(eval(atrDict["grid"])))
         else:
-            raise Exception(f"{atrDict['text']}: unknown layout")
+            print(f"unknown layout of {atrDict['text']}:{atrDict['layout']}")
 
-    def __create_control(self, frame, tag, atrDict):
+    def __create_control(self, parent, control):
+        tag = control.tag
+        atrDict = control.attrib
         text = atrDict["text"]
-        ctrlName = text.replace(" ", "")
-        print(f"tag: {tag}, ctrlName: {text}")
-        if tag == "MatPlot":
-            self.__dict__[f"_{ctrlName}"] = MatPlot(frame, text, atrDict["xLabel"], atrDict["yLabel"])
-            ctrl = self.__dict__[f"_{ctrlName}"]
+        legalName = text.replace(" ", "")
+        print(f"tag: {tag}, text: {text}")
+        if tag == "LabelFrame":
+            ctrl = tk.LabelFrame(parent, text=text)
+        elif tag == "Frame":
+            ctrl = tk.Frame(parent)
+        elif tag == "MatPlot":
+            self.__dict__[f"_{legalName}"] = MatPlot(parent, text, atrDict["xLabel"], atrDict["yLabel"])
+            ctrl = self.__dict__[f"_{legalName}"]
         elif tag == "Label":
-            layout = atrDict["layout"]
-            ctrl = tk.Label(frame, text=text)
+            ctrl = tk.Label(parent, text=text)
         elif tag == "Entry":
             width = int(atrDict["width"])
-            txtText = f"_txt{ctrlName}"
-            varText = f"_var{ctrlName}"
-            # pv(txtText)
+            ctrlName = f"_txt{legalName}"
+            varText = f"_var{legalName}"
             self.__dict__[varText] = tk.StringVar()
-            self.__dict__[txtText] = ttk.Entry(frame, textvariable=self.__dict__[varText], width=width)
-            ctrl = self.__dict__[txtText]
+            self.__dict__[ctrlName] = ttk.Entry(parent, textvariable=self.__dict__[varText], width=width)
+            ctrl = self.__dict__[ctrlName]
         elif tag == "Combobox":
-            varText = f"_var{ctrlName}"
+            varText = f"_var{legalName}"
             self.__dict__[varText] = tk.StringVar()
-            ctrl = ttk.Combobox(frame, textvariable=self.__dict__[varText], values=eval(atrDict["values"]), state=atrDict["state"], width=int(atrDict["width"]))
+            ctrl = ttk.Combobox(parent, textvariable=self.__dict__[varText], values=eval(atrDict["values"]), state=atrDict["state"], width=int(atrDict["width"]))
             ctrl.current(int(atrDict["default"]))
             ctrl.bind('<<ComboboxSelected>>', getattr(self, f"{varText}Changed"))
         elif tag == "Radiobutton":
-            varText = f"_var{ctrlName}"
+            varText = f"_var{legalName}"
             if varText not in self.__dict__:
                 self.__dict__[varText] = tk.IntVar()
             value = int(atrDict["value"])
-            # pv(value)
-            # pv(self.__dict__[varText])
-            ctrl = ttk.Radiobutton(frame, variable=self.__dict__[varText], value=int(atrDict["value"]), text=atrDict["title"], command=getattr(self, f"{varText}Changed"))
-            # pv(ctrl)
+            ctrl = ttk.Radiobutton(parent, variable=self.__dict__[varText], value=int(atrDict["value"]), text=atrDict["title"], command=getattr(self, f"{varText}Changed"))
         elif tag == "Button":
-            cmdName = f"_btn{ctrlName}Click"
-            ctrl = ttk.Button(master=frame, text=text, command=getattr(self, cmdName))
+            cmdName = f"_btn{legalName}Click"
+            ctrl = ttk.Button(master=parent, text=text, command=getattr(self, cmdName))
+        elif tag == "ImgButton":
+            imgFile = os.path.join(self.__resPath, atrDict["img"])
+            img = PIL.Image.open(imgFile)
+            eimg = PIL.ImageTk.PhotoImage(img)
+            cmdName = f"_btn{legalName}Click"
+            # ctrl = tix.Button(parent, image=eimg, relief=tk.FLAT, command=getattr(self, cmdName))
+            ctrl = tk.Button(parent, image=eimg, relief=tk.FLAT, command=getattr(self, cmdName))
+            ctrl.image = eimg
+            # self.__tooltip.bind_widget(ctrl, balloonmsg=tooltip)
+            tooltip = ToolTip(ctrl, text)		
+        elif tag == "Toolbar":
+            ctrl = Toolbar(parent, self.__resPath)
+            # pv(list(con  trol))
+            for subCtrl in list(control):
+                imgButton = self.__create_control(ctrl, subCtrl)
+                self.__assemble_control(imgButton, subCtrl.attrib)
+        elif tag == "ImgPanel":
+            ctrlName = f"_panel{legalName}"
+            pv(ctrlName)
+            self.__dict__[ctrlName] = ImgPanel(parent, text)
+            ctrl = self.__dict__[ctrlName]
         else:
             raise Exception(f"{tag}: unknown Control")		
 
-        self.__assemble_control(ctrl, atrDict)
+        return ctrl
 
-    def config_menu(self, cfgFile = None):
+    def config_menu(self, cfgFile=None):
         menubar = tk.Menu(self._frmApp)
 
         if cfgFile:
@@ -304,13 +346,10 @@ class tkWin(tk.Frame):
     def _about(self):
         self.show_info(self._title, "haha\nhaa")
 
+
 if __name__ == '__main__':
     import os
     import sys
-    curPath = os.path.dirname(os.path.abspath(__file__))
-    if getattr(sys, 'frozen', False):
-        # po("script is packaged!")
-        curPath = os.path.dirname(os.path.abspath(sys.executable))
 
     class App(tkWin):
         def __init__(self):
@@ -325,27 +364,26 @@ if __name__ == '__main__':
             pass
         def _varWindowTypeChanged(self):
             pass
-        def _varLowPassChanged(self):
-            pass
-        def _varHighPassChanged(self):
-            pass
-        def _varBandPassChanged(self):
-            pass
-        def _varBandStopChanged(self):
+        def _varFilterTypeChanged(self):
             pass
         def _varImpulseChanged(self):
             pass
         def _varStepChanged(self):
+            pass
+        def _varResponsePlotChanged(self):
             pass
         def _varDisplayTypeChanged(self):
             pass
         def _btnDesignFilterClick(self):
             pass
 
+    curPath = os.path.dirname(os.path.abspath(__file__))
+    if getattr(sys, 'frozen', False):
+        # po("script is packaged!")
+        curPath = os.path.dirname(os.path.abspath(sys.executable))
     myapp = App()
     winSampleXml = os.path.join(curPath, 'resources', 'windowSample.xml')
     myapp.create_window(winSampleXml)
     menuSampleXml = os.path.join(curPath, 'resources', 'menuSample.xml')
     myapp.config_menu(menuSampleXml)
-
     myapp.mainloop()
