@@ -17,21 +17,8 @@ class LineData:
 		self.line = None
 
 
-class AxisData:
-	def __init__(self, label: str, pad: tuple[int, int]):
-		self._label = label
-		self._pad = pad
-
-	@property
-	def label(self):
-		return self._label
-
-	@property
-	def pad(self):
-		return self._pad
-
 class MatPlot:
-	def __init__(self, frame, title: str, pos, xAxis: AxisData, yAxis: AxisData):
+	def __init__(self, frame, title: str, xLabel, yLabel):
 
 		self.__xData = None
 		self.__LinesData: list[LineData] = []
@@ -39,7 +26,7 @@ class MatPlot:
 		self.__yMin = float('inf')
 		self.__yMax = float('-inf')
 
-		self.__create(frame, title, xAxis.label, yAxis.label)
+		self.__create(frame, title, xLabel, yLabel)
 
 	def __create(self, frm, title, xLabel, yLabel):
 		fig = plt.Figure(figsize=(5.8, 1.8), dpi=100)
@@ -133,15 +120,17 @@ if __name__ == '__main__':
 
 	frmRoot = tk.Tk()
 
-	xAxis = AxisData(r"Points", (10, 10))
-	yAxis = AxisData(r"Sin", (10, 10))
-	matPlot = MatPlot(frmRoot, r"Sine Wave", tk.RIGHT, xAxis, yAxis)
+	xlabel = "Points"
+	xpad = (10, 10)
+	ylabel = "Sin"
+	ypad = (10, 10)
+	matPlot = MatPlot(frmRoot, r"Sine Wave", xlabel, ylabel)
 	matPlot.set_xData(x)
 	sinLine1 = LineData(rawSinH, 'rawSinH')
 	matPlot.add_line(sinLine1)
 	sinLine2 = LineData(rawSinL, 'rawSinL')
 	matPlot.add_line(sinLine2)
-	matPlot.pack("top", "both", True, xAxis.pad, yAxis.pad)
+	matPlot.pack("top", "both", True, xpad, ypad)
 	matPlot.draw()
 
 	menubar = tk.Menu(frmRoot)
