@@ -10,16 +10,20 @@ try:
 except ImportError:
     import xml.etree.ElementTree as et
 
-try:
-    from logit import pv, po
-    from matplot import MatPlot
-except ImportError:
-    from pyutilities.logit import pv
-    from pyutilities.matplot import MatPlot
-
 # from PIL import Image, ImageTk	# for imgButton
 import PIL
 import cv2	# for imgPannel
+
+try:
+    from logit import pv
+    from matplot import *
+except:
+    from pyutilities.logit import pv
+    from pyutilities.matplot import *
+
+
+from idlelib import statusbar
+
 
 # https://github.com/xinetzone/tkinter_action/blob/master/app/tools/tips.py
 class ToolTip:
@@ -159,7 +163,64 @@ class ImgPanel(tk.Label):
         self.configure(image = image)
         self.__image = image
 
+# Button, Checkbutton, Entry, Frame, Label, LabelFrame, Menubutton, PanedWindow, Radiobutton, Scale and Scrollbar, Combobox, Notebook, Progressbar, Separator, Sizegrip and Treeview
+class Control:
+    def __init__(self, varTyp="str"):
+        if varTyp == "str":
+            self.varText = tk.StringVar()
+        elif varTyp == "int":
+            self.varText = tk.IntVar()
 
+    def get_text(self):
+        return self.varText.get()
+
+    def set_text(self, text):
+        self.varText.set(text)
+
+class EntryCtrl(ttk.Entry, Control):
+    def __init__(self, parent, **cfgDict):
+        super().__init__(parent)
+        Control.__init__(self)
+        self.configure(textvariable=self.varText, **cfgDict)
+
+class ComboboxCtrl(ttk.Combobox, Control):
+    def __init__(self, parent, **cfgDict):
+        super().__init__(parent)
+        Control.__init__(self)
+        app = cfgDict["app"]
+
+        self.configure(textvariable=self.varText, **cfgDict["optDict"])
+        self.current(cfgDict["default"])
+        cmd = lambda event: app.process_message(cfgDict["idCtrl"], "Selected", self.varText.get())
+        self.bind('<<ComboboxSelected>>', cmd)
+
+class RadiobuttonCtrl(ttk.LabelFrame, Control):
+    def __init__(self, parent, **cfgDict):
+        super().__init__(parent)
+        Control.__init__(self, "int")
+        self.__app = cfgDict["app"]
+        # tk.LabelFrame(parent, text=text)
+        self.configure(text=cfgDict["text"], **cfgDict["options"])
+        self.__radButtons = []
+
+    def add_Radiobutton(self, **optDict):
+        radbutton = ttk.Radiobutton(master=self, variable=self.varText, **optDict)
+        self.__radButtons.append(radbutton)
+        return radbutton
+
+
+'''
+TODO:
+    * Message Queue			OK
+    * ImageButton			OK
+    * RatioButtonGroup		OK
+    * To options
+    * Dialog
+    * Enable/Disable
+    * EntryGroup
+    * lenged
+    * unique of idCtrl
+'''
 class tkWin(tk.Frame):
     def __init__(self):
         self._frmApp = tk.Tk()
@@ -168,6 +229,8 @@ class tkWin(tk.Frame):
         self._frmApp.protocol("WM_DELETE_WINDOW", self.exit_window)
 
         # self.__menuDict = {}
+        self.__dictCtrl = {}
+        # self.__cmdList = []
 
     '''
         设置窗口居中和宽高
@@ -194,9 +257,6 @@ class tkWin(tk.Frame):
 
     def show_info(self, title, info):
         tkMessageBox.showinfo(title, info)
-
-    def _btnExitApplicationClick(self):	
-        self.exit_window()
 
     def exit_window(self):
         res = tkMessageBox.askquestion('Exit Application', 'Do you really want to exit?')
@@ -233,6 +293,8 @@ class tkWin(tk.Frame):
             ctrl.pack(**(eval(atrDict["pack"])))
         elif (atrDict["layout"] == "grid"):
             ctrl.grid(**(eval(atrDict["grid"])))
+        elif (atrDict["layout"] == "none"):
+            print(f"{atrDict['text']}: no assemble")
         else:
             print(f"unknown layout of {atrDict['text']}:{atrDict['layout']}")
 
@@ -240,150 +302,149 @@ class tkWin(tk.Frame):
         tag = control.tag
         atrDict = control.attrib
         text = atrDict["text"]
-        legalName = text.replace(" ", "")
-        print(f"tag: {tag}, text: {text}")
+        idCtrl = text.replace(" ", "")
+        print(f"Control: {tag}, id: {idCtrl}, text: {text}")
         if tag == "LabelFrame":
             ctrl = tk.LabelFrame(parent, text=text)
         elif tag == "Frame":
             ctrl = tk.Frame(parent)
         elif tag == "MatPlot":
-            self.__dict__[f"_{legalName}"] = MatPlot(parent, text, atrDict["xLabel"], atrDict["yLabel"])
-            ctrl = self.__dict__[f"_{legalName}"]
+            ctrl = MatPlot(parent, text, atrDict["xLabel"], atrDict["yLabel"])
         elif tag == "Label":
             ctrl = tk.Label(parent, text=text)
         elif tag == "Entry":
             width = int(atrDict["width"])
-            ctrlName = f"_txt{legalName}"
-            varText = f"_var{legalName}"
-            self.__dict__[varText] = tk.StringVar()
-            self.__dict__[ctrlName] = ttk.Entry(parent, textvariable=self.__dict__[varText], width=width)
-            ctrl = self.__dict__[ctrlName]
+            ctrl = EntryCtrl(parent, width=width)
         elif tag == "Combobox":
-            varText = f"_var{legalName}"
-            self.__dict__[varText] = tk.StringVar()
-            ctrl = ttk.Combobox(parent, textvariable=self.__dict__[varText], values=eval(atrDict["values"]), state=atrDict["state"], width=int(atrDict["width"]))
-            ctrl.current(int(atrDict["default"]))
-            ctrl.bind('<<ComboboxSelected>>', getattr(self, f"{varText}Changed"))
+            optionDict = eval(atrDict["options"])
+            ctrl = ComboboxCtrl(parent, app=self, idCtrl=idCtrl, default=int(atrDict["default"]), optDict=optionDict)
+        elif tag == "RadiobuttonGroup":
+            optionDict = eval(atrDict["options"])
+            ctrl = RadiobuttonCtrl(parent, app=self, text=text, options=optionDict)
+            for radBtn in list(control):
+                radBtnAtrDict = radBtn.attrib
+                val = int(radBtnAtrDict["value"])
+                cmd = lambda: self.process_message(idCtrl, "Changed", ctrl.get_text())
+                radbutton = ctrl.add_Radiobutton(value=val, text=radBtnAtrDict["title"], command=cmd)
+                self.__assemble_control(radbutton, radBtnAtrDict)
         elif tag == "Radiobutton":
-            varText = f"_var{legalName}"
-            if varText not in self.__dict__:
-                self.__dict__[varText] = tk.IntVar()
+            varTextName = f"_var{idCtrl}"
             value = int(atrDict["value"])
-            ctrl = ttk.Radiobutton(parent, variable=self.__dict__[varText], value=int(atrDict["value"]), text=atrDict["title"], command=getattr(self, f"{varText}Changed"))
+            if varTextName not in self.__dict__:
+                self.__dict__[varTextName] = tk.IntVar()
+            varText = self.__dict__[varTextName]
+            cmd = lambda: self.process_message(idCtrl, "Changed", varText.get())
+            ctrl = ttk.Radiobutton(parent, variable=varText, value=int(atrDict["value"]), text=atrDict["title"], command=cmd)
         elif tag == "Button":
-            cmdName = f"_btn{legalName}Click"
-            ctrl = ttk.Button(master=parent, text=text, command=getattr(self, cmdName))
+            cmd = lambda: self.process_message(idCtrl, "Clicked")
+            ctrl = ttk.Button(parent, text=text, command=cmd)
         elif tag == "ImgButton":
             imgFile = os.path.join(self.__resPath, atrDict["img"])
             img = PIL.Image.open(imgFile)
             eimg = PIL.ImageTk.PhotoImage(img)
-            cmdName = f"_btn{legalName}Click"
-            # ctrl = tix.Button(parent, image=eimg, relief=tk.FLAT, command=getattr(self, cmdName))
-            ctrl = tk.Button(parent, image=eimg, relief=tk.FLAT, command=getattr(self, cmdName))
+            cmd = lambda: self.process_message(idCtrl, "Clicked")
+            ctrl = tk.Button(parent, image=eimg, relief=tk.FLAT, command=cmd)
             ctrl.image = eimg
             # self.__tooltip.bind_widget(ctrl, balloonmsg=tooltip)
             tooltip = ToolTip(ctrl, text)		
         elif tag == "Toolbar":
             ctrl = Toolbar(parent, self.__resPath)
-            # pv(list(con  trol))
+            # pv(list(control))
             for subCtrl in list(control):
                 imgButton = self.__create_control(ctrl, subCtrl)
                 self.__assemble_control(imgButton, subCtrl.attrib)
         elif tag == "ImgPanel":
-            ctrlName = f"_panel{legalName}"
-            pv(ctrlName)
-            self.__dict__[ctrlName] = ImgPanel(parent, text)
-            ctrl = self.__dict__[ctrlName]
+            ctrl = ImgPanel(parent, text)
+        elif tag == "Statusbar":
+            ctrl = Statusbar(parent)
+            ctrl = self.__dict__[txtText]
         else:
             raise Exception(f"{tag}: unknown Control")		
 
+        self.__dictCtrl.setdefault(idCtrl, ctrl)
         return ctrl
 
+    def _add_menu(self, menu, label, idCtrl):
+        menu.add_command(label=label, command=lambda: self.process_message(idCtrl, "clicked"))
+
     def config_menu(self, cfgFile=None):
-        menubar = tk.Menu(self._frmApp)
+        self.__menubar = tk.Menu(self._frmApp)
 
         if cfgFile:
             elementTree = et.parse(cfgFile)
             menuRoot = elementTree.getroot()
             for menuItem in list(menuRoot):
                 label = menuItem.attrib["Header"]
-                menu = tk.Menu(menubar, tearoff=False)
+                print(f"Menu: {label}")
+                menu = tk.Menu(self.__menubar, tearoff=False)
                 for subMenuItm in list(menuItem):
-                    try:
-                        subLabel = subMenuItm.attrib["Command"]
-                        cmdName = subLabel.lower().replace(" ", "_").replace("...", "")
-                        if subLabel == "Exit":
-                            cmd = self.exit_window
-                        else:
-                            cmd = getattr(self, f"_{cmdName}")
-                    except Exception as r:
-                        print(f"tag: {subMenuItm.tag}, error: {r}")
+                    tag = subMenuItm.tag
+                    if tag == "Separator":
+                        menu.add_separator()
+                        print(f"subMenu: {subMenuItm.tag}")
+                        continue
+                    subLabel = subMenuItm.attrib["Command"]
+                    cmdName = str(subLabel.replace(" ", "_").replace("...", ""))
+                    print(f"subMenu: {tag} -> {subLabel}")
 
-                    try:
-                        if subMenuItm.tag == "Separator":
-                            menu.add_separator()
-                            continue
-                        elif subMenuItm.tag == "Checkbutton":
-                            varName = subMenuItm.attrib["variable"]
-                            self.__dict__[f"_{varName}"] = tk.BooleanVar()
-                            var = self.__dict__[f"_{varName}"]
-                            var.set(True)
-                            menu.add_checkbutton(label=subLabel, command=cmd,
-                                variable=var)
-                            continue
-                        menu.add_command(label=subLabel, command=cmd)
-                    except Exception as r:
-                        print(f"label: {subLabel}, error: {r}")
-                menubar.add_cascade(label=label, menu=menu)
+                    if tag == "Checkbutton":
+                        varName = subMenuItm.attrib["variable"]
+                        self.__dict__[f"_{varName}"] = tk.BooleanVar()
+                        var = self.__dict__[f"_{varName}"]
+                        var.set(True)
+                        try:
+                            cmd = getattr(self, f"_{cmdName}")
+                        except:
+                            cmd = lambda: self.process_message(cmdName, "Changed", var.get())
+                        menu.add_checkbutton(label=subLabel, command=cmd, variable=var)
+                    elif tag == "MenuItem":
+                        self._add_menu(menu, subLabel, cmdName)
+                    else:
+                        print(f"Unkown Menu: {tag} -> {subLabel}")
+
+                self.__menubar.add_cascade(label=label, menu=menu, underline=0)
         else:
             fileMenu = tk.Menu(menubar, tearoff=False)
             # fileMenu.add_separator()
-            fileMenu.add_command(label="Exit", command=self.exit_window)
-            menubar.add_cascade(label="File", menu=fileMenu)
+            fileMenu.add_command(label="Exit", command=self.exit_window, accelerator="Ctrl+E")
+            self.__menubar.add_cascade(label="File", menu=fileMenu)
 
-        self._frmApp.config(menu=menubar)
+        self._frmApp.config(menu=self.__menubar)
 
-    def _about(self):
-        self.show_info(self._title, "haha\nhaa")
+    def get_control(self, idCtrl):
+        return self.__dictCtrl[idCtrl]
+
+    def process_message(self, idCtrl, msg, extMsg=""):
+        if (idCtrl == "Exit"):
+            self.exit_window()
+        else:
+            print(f"undeal msg of {idCtrl}: {msg}, {extMsg}")
+
+    def go(self):
+        self._frmApp.mainloop()
 
 
 if __name__ == '__main__':
-    import os
     import sys
+    import os
 
-    class App(tkWin):
+    class exampleApp(tkWin):
         def __init__(self):
             super().__init__()
-        def _export_coefficients(self):
-            pass
-        def _export_time_domain_data(self):
-            pass
-        def _export_frequency_domain_data(self):
-            pass
-        def _info(self):
-            pass
-        def _varWindowTypeChanged(self):
-            pass
-        def _varFilterTypeChanged(self):
-            pass
-        def _varImpulseChanged(self):
-            pass
-        def _varStepChanged(self):
-            pass
-        def _varResponsePlotChanged(self):
-            pass
-        def _varDisplayTypeChanged(self):
-            pass
-        def _btnDesignFilterClick(self):
-            pass
+        def process_message(self, idCtrl, msg, extMsg=""):
+            if idCtrl == "DesignFilter":
+                frqLo = self.get_control("LowFrequency").get()
+                pv(frqLo)			
+            else:
+                super().process_message(idCtrl, msg, extMsg)
 
+    myApp = exampleApp()
     curPath = os.path.dirname(os.path.abspath(__file__))
     if getattr(sys, 'frozen', False):
-        # po("script is packaged!")
+        # print("script is packaged!")
         curPath = os.path.dirname(os.path.abspath(sys.executable))
-    myapp = App()
-    winSampleXml = os.path.join(curPath, 'resources', 'windowSample.xml')
-    myapp.create_window(winSampleXml)
-    menuSampleXml = os.path.join(curPath, 'resources', 'menuSample.xml')
-    myapp.config_menu(menuSampleXml)
-    myapp.mainloop()
+    win_xml = os.path.join(curPath, 'resources', 'windowSample.xml')
+    myApp.create_window(win_xml)
+    menu_xml = os.path.join(curPath, 'resources', 'menuSample.xml')	
+    myApp.config_menu(menu_xml)
+    myApp.go()

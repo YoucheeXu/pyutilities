@@ -19,17 +19,19 @@
 		<Label text="High Frequency(Hz):" layout="grid" grid="{'row':1,'column':2}"/>
 		<Entry text="High Frequency" width="15" layout="grid" grid="{'row':1,'column':3}"/>
 		<Label text="Window Function:" layout="grid" grid="{'row':2,'column':2}"/>
-		<Combobox text="Window Type" values='["Rectangular", "Triangular", "Welch", "Sine", "Hann", "Hamming", "Blackman", "Nuttall", "BlackmanNuttall", "BlackmanHarris", "FlatTop"]' state='readonly' default="5" width="15" layout="grid" grid="{'row':2,'column':3}"/>
-		<Label text="Filter Type" layout="grid" grid="{'row':0,'column':4}"/>
-		<Radiobutton title="Low Pass"  text="Filter Type" value="0" layout="grid" grid="{'row':1,'column':4}"/>
-		<Radiobutton title="High Pass" text="Filter Type" value="1" layout="grid" grid="{'row':1,'column':5}"/>
-		<Radiobutton title="Band Pass" text="Filter Type" value="2" layout="grid" grid="{'row':2,'column':4}"/>
-		<Radiobutton title="Band Stop" text="Filter Type" value="3" layout="grid" grid="{'row':2,'column':5}"/>
-		<Label text="Response Plot:" layout="grid" grid="{'row':0,'column':6}"/>
-		<Radiobutton title="Impulse" text="Response Plot" value="0" layout="grid" grid="{'row':0,'column':7}"/>
-		<Radiobutton title="Step" text="Response Plot" value="1" layout="grid" grid="{'row':1,'column':7}"/>
+		<Combobox text="Window Type" default="5" options="{'values':['Rectangular', 'Triangular', 'Welch', 'Sine', 'Hann', 'Hamming', 'Blackman', 'Nuttall', 'BlackmanNuttall', 'BlackmanHarris', 'FlatTop'],'state':'readonly','width':15}" layout="grid" grid="{'row':2,'column':3}"/>
+		<RadiobuttonGroup text="Filter Type" options="{'labelanchor':'n'}" layout="grid" grid="{'row':0,'column':4,'rowspan':3,'columnspan':2}">
+			<Radiobutton title="Low Pass"  value="0" layout="grid" grid="{'row':0,'column':1,'sticky':'w'}"/>
+			<Radiobutton title="High Pass" value="1" layout="grid" grid="{'row':0,'column':2,'sticky':'w'}"/>
+			<Radiobutton title="Band Pass" value="2" layout="grid" grid="{'row':1,'column':1,'sticky':'w'}"/>
+			<Radiobutton title="Band Stop" value="3" layout="grid" grid="{'row':1,'column':2,'sticky':'w'}"/>
+		</RadiobuttonGroup>
+		<RadiobuttonGroup text="Response Plot" options="{'labelanchor':'w'}" layout="grid" grid="{'row':0,'column':6,'rowspan':2,'columnspan':2}">
+			<Radiobutton title="Impulse" value="0" layout="grid" grid="{'row':0,'column':1,'sticky':'w'}"/>
+			<Radiobutton title="Step" 	 value="1" layout="grid" grid="{'row':1,'column':1,'sticky':'w'}"/>
+		</RadiobuttonGroup>		
 		<Label text="Display:" layout="grid" grid="{'row':2,'column':6}"/>
-		<Combobox text="Display Type" values='["Both", "Raw Only", "Win Only"]' state='readonly' default="0" width="15" layout="grid" grid="{'row':2,'column':7}"/>
+		<Combobox text="Display Type" default="0" options="{'values':['Both', 'Raw Only', 'Win Only'],'state':'readonly','width':15}" layout="grid" grid="{'row':2,'column':7}"/>
 	</LabelFrame>
 	<Button text="Design Filter" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(5,10),"pady":(5,10)}'/>
 </Window>
