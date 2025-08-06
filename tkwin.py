@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
+import os
 import tkinter as tk
 import tkinter.messagebox as tkMessageBox
 import tkinter.ttk as ttk
@@ -16,13 +17,13 @@ import cv2	# for imgPannel
 
 try:
     from logit import pv
-    from matplot import *
-except:
+    from matplot import MatPlot
+except ImportError:
     from pyutilities.logit import pv
-    from pyutilities.matplot import *
+    from pyutilities.matplot import MatPlot
 
 
-from idlelib import statusbar
+from idlelib.statusbar import MultiStatusBar
 
 
 # https://github.com/xinetzone/tkinter_action/blob/master/app/tools/tips.py
@@ -32,11 +33,11 @@ class ToolTip:
     '''
     def __init__(self, widget, text, timeout=500, offset=(0, 20), **kw):
         '''
-        参数
-        =======
-        widget: tkinter 小部件
-        text: (str) tooltip 的文本信息
-        timeout: 鼠标必须悬停 timeout 毫秒，才会显示 tooltip
+            参数
+            =======
+            widget: tkinter 小部件
+            text: (str) tooltip 的文本信息
+            timeout: 鼠标必须悬停 timeout 毫秒，才会显示 tooltip
         '''
         # 设置 用户参数
         self.__widget = widget
@@ -105,18 +106,18 @@ class ToolTip:
         
     def __enter(self, event):
         """
-        鼠标进入 widget 的回调函数
-        
-        参数
-        =========
-        :event:  来自于 tkinter，有鼠标的 x,y 坐标属性
+            鼠标进入 widget 的回调函数
+            
+            参数
+            =========
+            :event:  来自于 tkinter，有鼠标的 x,y 坐标属性
         """
         self.__cursor(event)
         self.__schedule()
 
     def __hidetip(self):
         """
-        销毁 tooltip window
+            销毁 tooltip window
         """
         if self.__tipwindow:
             self.__tipwindow.destroy()
@@ -125,11 +126,11 @@ class ToolTip:
           
     def __leave(self, event):
         """
-        鼠标离开 widget 的销毁 tooltip window
-         
-        参数
-        =========
-        :event:  来自于 tkinter，没有被使用
+            鼠标离开 widget 的销毁 tooltip window
+            
+            参数
+            =========
+            :event:  来自于 tkinter, 没有被使用
         """
         self.__unschedule()
         self.__hidetip()
@@ -232,13 +233,6 @@ class tkWin(tk.Frame):
         self.__dictCtrl = {}
         # self.__cmdList = []
 
-    '''
-        设置窗口居中和宽高
-        :param window: 主窗体
-        :param Width: 窗口宽度
-        :param Hight: 窗口高度
-        :return: 无
-    '''
     def __center_window(self, width, hight):
 
         # 获取屏幕宽度和高度
@@ -269,8 +263,8 @@ class tkWin(tk.Frame):
         elementTree = et.parse(cfgFile)
         winRoot = elementTree.getroot()
         self._title = winRoot.attrib["Title"]
-        width = int(winRoot.attrib["Height"])
-        hight = int(winRoot.attrib["Width"])
+        width = int(winRoot.attrib["Width"])
+        hight = int(winRoot.attrib["Height"])
 
         self._frmApp.title(self._title)
         self.__center_window(width, hight)
@@ -289,7 +283,6 @@ class tkWin(tk.Frame):
     def __assemble_control(self, ctrl, atrDict):
         # pv(atrDict)
         if (atrDict["layout"] == "pack"):
-            layout = "pack"
             ctrl.pack(**(eval(atrDict["pack"])))
         elif (atrDict["layout"] == "grid"):
             ctrl.grid(**(eval(atrDict["grid"])))
@@ -356,8 +349,8 @@ class tkWin(tk.Frame):
         elif tag == "ImgPanel":
             ctrl = ImgPanel(parent, text)
         elif tag == "Statusbar":
-            ctrl = Statusbar(parent)
-            ctrl = self.__dict__[txtText]
+            ctrl = MultiStatusBar(parent)
+            # ctrl = self.__dict__[txtText]
         else:
             raise Exception(f"{tag}: unknown Control")		
 
@@ -404,7 +397,7 @@ class tkWin(tk.Frame):
 
                 self.__menubar.add_cascade(label=label, menu=menu, underline=0)
         else:
-            fileMenu = tk.Menu(menubar, tearoff=False)
+            fileMenu = tk.Menu(self.__menubar, tearoff=False)
             # fileMenu.add_separator()
             fileMenu.add_command(label="Exit", command=self.exit_window, accelerator="Ctrl+E")
             self.__menubar.add_cascade(label="File", menu=fileMenu)
