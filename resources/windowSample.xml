@@ -53,8 +53,5 @@
 		</LabelFrame>
 		<Button text="Design Filter" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(5,10),"pady":(12,10)}'/>
 	</Frame>		
-	<Statusbar text="Statusbar" layout ="pack" pack='{"side":"bottom","fill":"x","expand":True}'>
-		<Label name="one" text="hello" side="left" width="0"/>
-		<Label name="two" text="world" side="left" width="0"/>
-	</Statusbar>
+	<Statusbar text="Statusbar" layout ="pack" pack='{"side":"bottom","fill":"x","expand":True}'/>
 </Window>
