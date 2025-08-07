@@ -14,7 +14,7 @@ import xml.etree.ElementTree as et
 from ast import literal_eval
 
 try:
-    from logit import pv
+    from logit import pv, pe
     from matplot import MatPlot
 except ImportError:
     from pyutilities.logit import pv, pe
@@ -27,27 +27,10 @@ from idlelib.tooltip import Hovertip
 import PIL
 
 EventHanlder = Callable[[str, str], None]
-DiagCallback = Callable[[bool], tuple[bool, str]]
+DlgCallback = Callable[[bool], (bool, str)]
 
-
-__version__ = "3.2.4"
-
+__version__ = "3.3.0"
 IS_WINDOWS = platform.system() == "Windows"
-
-
-# class StatusBar(tk.Frame):
-    # def __init__(self, _win):
-        # tk.Frame.__init__(self, _win)
-        # self._label = tk.Label(self, bd=1, relief='sunken', anchor="w")
-        # self._label.pack(fill='x')
-
-    # def set(self, format0, *args):
-        # self._label.config(text=format0 % args)
-        # self._label.update_idletasks()
-
-    # def clear(self):
-        # self._label.config(text="")
-        # self._label.update_idletasks()
 
 
 class Toolbar(tk.Frame):
@@ -97,16 +80,18 @@ class ImgPanel(tk.Label):
     # self.configure(image = image)
     # self._image = image
 
-# TODO: add cancel, confirm
+
 class Dialog(ttk.Frame):
     def __init__(self, parent, title: str, subctrl_list, options) -> None:
-        ttk.Frame.__init__(self, parent.win)
+        super().__init__(self, parent.win, **options)
         self._top = None
         self._parent = parent
         self._title = title
         self._subctrl_list = subctrl_list
-        self._options = options
-        self._confirm_handler: DiagCallback = None
+        # self._options = options
+        self._confirm = False
+        self._confirm_handler: DlgCallback = None
+        self._id_list = []
 
     def do_show(self):
         # self.deiconify()
@@ -119,39 +104,84 @@ class Dialog(ttk.Frame):
                         win.winfo_rooty()+30))
         self._top.resizable(0, 0)
         self._top.protocol("WM_DELETE_WINDOW", self.destroy) # intercept close button
-        
+
         # self.resizable(0, 0)        # 禁止调节大小
         # self.withdraw()
+        parent = self._parent
+        id_ctrl = self._title.replace(" ", "").replace(".", "_").replace("\n", "_")
+
+        frm_dlg_xml = parent.create_xml("Top", {})
+
+        frm_main_xml = parent.create_xml("Frame", {"text": f"frmMain{id_ctrl}"}, frm_dlg_xml)
+        id_frmain, frm_main = parent.create_control(self._top, frm_main_xml, 0)
+        self._id_list.append(id_frmain)
+
         for sub_ctrl in self._subctrl_list:
-            id_, ctrl = self._parent.create_control(self._top, sub_ctrl, 0)
-            self._parent.assemble_control(ctrl, sub_ctrl.attrib)
-            # self._ctrls_val[id_] = ""
+            id_, ctrl = parent.create_control(frm_main, sub_ctrl, 1)
+            self._id_list.append(id_)
+            parent.assemble_control(ctrl, sub_ctrl.attrib, f"{'  '*1}")
+
+        parent.assemble_control(frm_main, {"layout": "pack",
+            "pack": "{'side':'top','fill':'both','expand':True,'padx':5,'pady':5}"})
+
+        frm_bot_xml = parent.create_xml("Frame", {"text": f"frmBot{id_ctrl}"}, frm_dlg_xml)
+        id_frmbot, frm_bot = parent.create_control(self._top, frm_bot_xml, 0)
+        self._id_list.append(id_frmbot)
+
+        xml = parent.create_xml("Button", {"id": f"btnConfirm{id_ctrl}",
+            "text": "Confirm", "options": "{'width':20}"}, frm_bot_xml)
+        id_, ctrl = parent.create_control(frm_bot, xml, 1)
+        self._id_list.append(id_)
+        parent.assemble_control(ctrl, {"layout":"pack",
+            "pack":"{'side':'right','fill':'both','expand':True,'padx':5,'pady':5}"}, f"{'  '*1}")
+        parent.register_eventhandler(id_, self._do_confirm)
+
+        xml = parent.create_xml("Button", {"id": f"btnCancel{id_ctrl}",
+            "text": "Cancel", "options": "{'width':20}"}, frm_bot_xml)
+        id_, ctrl = parent.create_control(frm_bot, xml, 1)
+        self._id_list.append(id_)
+        parent.assemble_control(ctrl, {"layout":"pack",
+            "pack":"{'side':'right','fill':'both','expand':True,'padx':5,'pady':5}"}, f"{'  '*1}")
+        parent.register_eventhandler(id_, self._do_cancel)
+
+        parent.assemble_control(frm_bot, {"layout": "pack",
+            "pack": "{'side':'bottom','fill':'both','expand':True,'padx':5,'pady':5}"})
 
         # self._top.wait_visibility() # can't grab until window appears, so we wait
         self._top.transient(win)   # dialog window is related to main
         self._top.grab_set()        # ensure all input goes to our window
         # 设置achieved_value，使该窗口始终处于其他窗口的上层
-        self._top.attributes("-topmost", 1)     
+        self._top.attributes("-topmost", 1)
         self.wait_window(self._top)
-        self._confirm = True        # temp
 
     def get_control(self, id_: str):
         return self._parent.get_control(id_)
 
-    def register_confirmhandler(self, handler: DiagCallback):
+    def _do_cancel(self, msg, ext_msg=""):
+        self._confirm = False
+        print(msg, ext_msg)
+        self.destroy()
+
+    def _do_confirm(self, msg, ext_msg=""):
+        self._confirm = True
+        print(msg, ext_msg)
+        self.destroy()
+
+    def register_confirmhandler(self, handler: DlgCallback):
         self._confirm_handler = handler
 
     def destroy(self):
         # self.withdraw()
         if self._top:
             if self._confirm_handler:
-                ret, msg = self._confirm_handler(True)
+                ret, msg = self._confirm_handler(self._confirm)
                 if not ret:
                     self._parent.show_err(self._title, msg)
                     return
             self._top.grab_release()
-            for sub_ctrl in self._subctrl_list:
-                self._parent.delete_control(sub_ctrl.attrib["id"])
+            for id_ctrl in self._id_list:
+                self._parent.delete_control(id_ctrl)
+            self._id_list.clear()
             self._top.destroy()
             self._top = None
 
@@ -174,13 +204,6 @@ class EntryCtrl(ttk.Entry, Control):
     def __init__(self, parent, **cfg_dict):
         super().__init__(parent)
         Control.__init__(self)
-        # if "textvariable" in optDict:
-        # varText = optDict['textvariable']
-        # varTextName = varText[varText.rfind('.') + 1:]
-        # print(f'\nvarTextName: {varTextName}')
-        # if varTextName not in self.__dict__:
-        # self.__dict__[varTextName] = tk.StringVar()
-        # # variable = self.__dict__[varTextName]
         self.configure(textvariable=self._var_val, **cfg_dict)
 
 
@@ -194,7 +217,7 @@ class ComboboxCtrl(ttk.Combobox, Control):
         self.bind(
             "<<ComboboxSelected>>",
             lambda event: app.process_message(
-                cfg_dict["idCtrl"], "Selected", self._var_val.get()
+                cfg_dict["id_ctrl"], "Selected", self._var_val.get()
             ),
         )
 
@@ -207,8 +230,8 @@ class RadiobuttonCtrl(ttk.LabelFrame, Control):
         self.configure(text=cfg_dict["text"], **cfg_dict["options"])
         self._radbuttons_lst = []
 
-    def add_radiobutton(self, **optDict):
-        radbutton = ttk.Radiobutton(master=self, variable=self._var_val, **optDict)
+    def add_radiobutton(self, **opt_dict):
+        radbutton = ttk.Radiobutton(master=self, variable=self._var_val, **opt_dict)
         self._radbuttons_lst.append(radbutton)
         return radbutton
 
@@ -236,6 +259,7 @@ class ImgBtnCtrl(tk.Button, Control):
         self.image = eimg
 
     def _read_image(self, img_file: str):
+        # eimg = PIL.ImageTk.PhotoImage(img)
         img = PIL.Image.open(img_file)
         # w = self._options["width"]
         # h = self._options["height"]
@@ -258,7 +282,7 @@ class ImgBtnCtrl(tk.Button, Control):
         self.configure(image=eimg)
 
 
-class WinApp:
+class tkWin:
     def __init__(self, cur_path: str):
         self._win = tk.Tk()
 
@@ -319,7 +343,7 @@ class WinApp:
                 )  # get before_close from child
                 before_close()
             except AttributeError as r:
-                print(f"error to exit: {r}")
+                print(f"Warnning to exit: {r}")
             self._win.destroy()
 
     def create_window(self, cfg_file: str):
@@ -339,7 +363,7 @@ class WinApp:
             self._center_window(width, hight)
 
         for frm in list(win):
-            self._create_controls(self._win, frm, 0)
+            self._create_controls(self._win, frm)
 
     def _create_controls(self, parent, cfg, level=0):
         _, ctrl = self.create_control(parent, cfg, level)
@@ -372,10 +396,20 @@ class WinApp:
 
         print(f"{prefix}, layout: {atr_dict['layout']}")
 
+    def create_xml(self, tag: str, atr_dict, root=None):
+        try:
+            if root:
+                itm_xml = et.SubElement(root, tag)
+            else:
+                itm_xml = et.Element(tag)
+            itm_xml.attrib = atr_dict.copy()
+        except RuntimeError as r:
+            print(f"\n{tag}:{atr_dict['id']}->errot to create_item: {r}")
+        return itm_xml
+
     def create_control(self, parent, control, level=0):
         tag = control.tag
         atr_dict = control.attrib
-        # id_ctrl = ""
         text = atr_dict.get("text", None)
         if "id" in atr_dict:
             id_ctrl = atr_dict["id"]
@@ -403,14 +437,11 @@ class WinApp:
                 clickable = atr_dict.get("clickable", False)
                 if clickable:
                     print(f"{id_ctrl} clickable")
-                    ctrl.bind("<Button-1>", lambda event: self.process_message(id_ctrl, "Clicked"))   
+                    ctrl.bind("<Button-1>", lambda event: self.process_message(id_ctrl, "Clicked"))
             case "Button":
-                ctrl = ttk.Button(
-                    parent,
-                    text=str(text),
+                ctrl = ttk.Button(parent, text=str(text),
                     command=lambda: self.process_message(id_ctrl, "Clicked"),
-                    **options,
-                )
+                    **options)
             case "Canvas":
                 ctrl = tk.Canvas(parent, **options)
             case "Checkbutton":
@@ -420,53 +451,36 @@ class WinApp:
                     self.__dict__[var_text_name] = tk.IntVar()
                 variable = self.__dict__[var_text_name]
                 ctrl = tk.Checkbutton(parent, text=text, variable=variable, **options)
-                variable.trace(
-                    "w",
+                variable.trace("w",
                     lambda u0, u1, u2: self.process_message(
                         var_text, "Changed", variable.get()
-                    ),
+                    )
                 )
                 if atr_dict["select"] == "1":
                     ctrl.select()
             case "Combobox":
-                ctrl = ComboboxCtrl(
-                    parent,
-                    app=self,
-                    idCtrl=id_ctrl,
-                    default=int(atr_dict["default"]),
-                    options=options,
-                )
+                ctrl = ComboboxCtrl(parent, app=self, id_ctrl=id_ctrl,
+                    default=int(atr_dict["default"]), options=options)
             case "Entry":
                 ctrl = EntryCtrl(parent, **options)
             case "ImgButton":
-                # imgFile = os.path.join(self._resPath, atrDict["img"])
-                # img = PIL.Image.open(imgFile)
-                # img = img.resize((options["width"], options["height"]))
-                # eimg = PIL.ImageTk.PhotoImage(img)
-                # # photo = tk.PhotoImage(file=imgFile)
-                # # Resizing image to fit on button
-                # # eimg = photo.subsample(options["width"], options["height"])
-                # ctrl = tk.Button(parent, image=eimg, relief=tk.FLAT, command=cmd, **options)
-                # ctrl.image = eimg
-                ctrl = ImgBtnCtrl(
-                    parent,
-                    app=self,
-                    img_file=os.path.join(self._res_path, atr_dict["img"]),
-                    command=lambda: self.process_message(id_ctrl, "Clicked"),
-                    options=options,
-                )
+                ctrl = ImgBtnCtrl(parent, app=self,
+                    img_file=os.path.join(self._res_path,
+                        atr_dict["img"]),
+                    command=lambda: self.process_message(id_ctrl,
+                        "Clicked"),
+                    options=options)
             case "ImgPanel":
-                ctrl = ImgPanel(
-                    parent, os.path.join(self._res_path, atr_dict["img"]), **options
-                )
+                ctrl = ImgPanel(parent,
+                    os.path.join(self._res_path, atr_dict["img"]), **options)
             case "MatPlot":
                 if "size" in atr_dict:
                     size = literal_eval(atr_dict["size"])
-                    ctrl = MatPlot(
-                        parent, text, atr_dict["xLabel"], atr_dict["yLabel"], size
-                    )
+                    ctrl = MatPlot(parent, text, atr_dict["xLabel"],
+                        atr_dict["yLabel"], size)
                 else:
-                    ctrl = MatPlot(parent, text, atr_dict["xLabel"], atr_dict["yLabel"])
+                    ctrl = MatPlot(parent, text, atr_dict["xLabel"],
+                        atr_dict["yLabel"])
             case "Menu":
                 print()
                 ctrl = self.create_menu(control)
@@ -480,23 +494,19 @@ class WinApp:
                     for item in list(subctrl_cfg):
                         self._create_controls(sub_ctrl, item, level + 2)
             case "RadiobuttonGroup":
-                ctrl = RadiobuttonCtrl(parent, app=self, text=text, options=options)
+                ctrl = RadiobuttonCtrl(parent, app=self,
+                    text=text, options=options)
                 print()
-                for radbtn in list(control):
-                    radbtn_atr_dict = radbtn.attrib
+                for subctrl_cfg in list(control):
+                    radbtn_atr_dict = subctrl_cfg.attrib
                     val = int(radbtn_atr_dict["value"])
                     text = radbtn_atr_dict["text"]
-                    radbutton = ctrl.add_radiobutton(
-                        value=val,
-                        text=text,
+                    sub_ctrl = ctrl.add_radiobutton(value=val, text=text,
                         command=lambda: self.process_message(
-                            id_ctrl, "Changed", ctrl.get_text()
-                        ),
-                    )
+                            id_ctrl, "Changed", ctrl.get_text()))
                     print(
-                        f"{'  '*(level + 1)}Control: Radiobutton, text: {text}", end=""
-                    )
-                    self.assemble_control(radbutton, radbtn_atr_dict)
+                        f"{'  '*(level + 1)}Control: Radiobutton, text: {text}", end="")
+                    self.assemble_control(sub_ctrl, radbtn_atr_dict)
             case "Radiobutton":
                 var_text = atr_dict["var"]
                 var_text_name = f"_var{atr_dict['var']}"
@@ -505,34 +515,25 @@ class WinApp:
                 variable = self.__dict__[var_text_name]
                 id_ctrl = var_text
                 # print(f", title = {title}", end="")
-                ctrl = ttk.Radiobutton(
-                    parent,
-                    variable=variable,
-                    value=int(atr_dict["value"]),
-                    text=text,
+                ctrl = ttk.Radiobutton(parent, variable=variable,
+                    value=int(atr_dict["value"]), text=text,
                     command=lambda: self.process_message(
-                        id_ctrl, "Changed", variable.get()
-                    ),
-                )
-                # pv(ctrl, end="")
+                        id_ctrl, "Changed", variable.get()))
             case "Statusbar":
                 ctrl = MultiStatusBar(parent)
-                for label in list(control):
-                    ctrl.set_label(**label.attrib)
+                for subctrl_cfg in list(control):
+                    ctrl.set_label(**subctrl_cfg.attrib)
             case "ScrolledText":
                 ctrl = scrolledtext.ScrolledText(parent, **options)
             case "Spinbox":
-                ctrl = tk.Spinbox(
-                    parent,
+                ctrl = tk.Spinbox(parent,
                     command=lambda: self.process_message(id_ctrl, "Changed"),
-                    **options,
-                )
+                    **options)
             case "Style":
                 ctrl = ttk.Style()
                 ctrl.configure(text, **options)
             case "Toolbar":
                 ctrl = Toolbar(parent, self._res_path)
-                # pv(list(control))
                 for subctrl_cfg in list(control):
                     _, sub_ctrl = self.create_control(ctrl, subctrl_cfg)
                     self.assemble_control(sub_ctrl, subctrl_cfg.attrib)
@@ -543,8 +544,8 @@ class WinApp:
                 ctrl = tk.Listbox(parent)
                 ctrl.configure(**options)
             case "Dialog":
-                subctrl_list = list(control)
-                ctrl = Dialog(self, text, subctrl_list, options)
+                subctrl_cfg = list(control)
+                ctrl = Dialog(self, text, subctrl_cfg, options)
                 print()
             case _:
                 raise ValueError(f"{tag}: unknown Control")
@@ -556,6 +557,7 @@ class WinApp:
         return id_ctrl, ctrl
 
     def delete_control(self, id_ctrl: str):
+        self._ctrls_dict[id_ctrl].destroy()
         del self._ctrls_dict[id_ctrl]
 
     def disable_control(self, ctrl, is_disbl=True):
@@ -672,15 +674,15 @@ class WinApp:
             func = self._event_hanlder.get(id_ctrl, None)
             if func is not None:
                 func(msg, ext_msg)
-        else:
-            print(f"undeal msg of {id_ctrl}: {msg}, {ext_msg}")
+                return
+        print(f"undeal msg of {id_ctrl}: {msg}, {ext_msg}")
 
     def go(self):
         try:
             before_go = getattr(self, "_before_go")  # get before_go from child
             before_go()
         except AttributeError as r:
-            print(f"error to go: {r}")
+            print(f"Warnning to go: {r}")
         self._win.mainloop()
 
     @property
@@ -689,14 +691,55 @@ class WinApp:
 
 
 if __name__ == "__main__":
-
-    class ExampleApp(WinApp):
+    class ExampleApp(tkWin):
         def process_message(self, id_ctrl, msg, ext_msg=""):
-            if id_ctrl == "DesignFilter":
-                frq_low = float(self.get_control("LowFrequency").get_val())
-                pv(frq_low)
-            else:
-                super().process_message(id_ctrl, msg, ext_msg)
+            match id_ctrl:
+                case "InfoBox":
+                    self.show_info('Python Message Info Box', '通知：程序运行正常！')
+                case "WarnBox":
+                    self.show_warn('Python Message Warning Box', '警告：程序出现错误，请检查！')
+                case "ErrorBox":
+                    self.show_err('Python Message Error Box', '错误：程序出现严重错误，请退出！')
+                case "ChoiceBox":
+                    answer = self.ask_yesno("Python Message Dual Choice Box", "你喜欢这篇文章吗？\n您的选择是：")
+                    if answer:
+                        self.show_info('显示选择结果', '您选择了“是”，谢谢参与！')
+                    else:
+                        self.show_info('显示选择结果', '您选择了“否”，谢谢参与！')
+                case "radSel":
+                    values = ["富强民主", "文明和谐", "自由平等","公正法治","爱国敬业","诚信友善"]
+                    monty2 = self.get_control("控件示范区2")
+                    monty2.configure(text=values[int(ext_msg)])
+                case "chVarUn":
+                    check_btn = self.get_control("屈于现实")
+                    if int(ext_msg) == 1:
+                        self.disable_control(check_btn)
+                    else:
+                        self.disable_control(check_btn, False)
+                case "chVarEn":
+                    check_btn = self.get_control("遵从内心")
+                    if int(ext_msg) == 1:
+                        self.disable_control(check_btn)
+                    else:
+                        self.disable_control(check_btn, False)
+                case "点击之后_按钮失效":
+                    btn = self.get_control("点击之后_按钮失效")
+                    name = self.get_control("name")
+                    btn.configure(text='Hello\n ' + name.get_val())
+                    self.disable_control(btn)
+                case "blankSpin":
+                    spin = self.get_control("blankSpin")
+                    value = spin.get()
+                    scr = self.get_control("scrolledtext")
+                    scr.insert(tk.INSERT, value + '\n')
+                case "bookSpin":
+                    spin = self.get_control("bookSpin")
+                    value = spin.get()
+                    scr = self.get_control("scrolledtext")
+                    scr.insert(tk.INSERT, value + '\n')
+                case _:
+                    super().process_message(id_ctrl, msg, ext_msg)
+
 
     path = os.path.dirname(os.path.abspath(__file__))
     if getattr(sys, "frozen", False):

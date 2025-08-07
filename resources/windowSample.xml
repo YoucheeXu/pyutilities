@@ -1,57 +1,64 @@
-<Window Title="FIR Designer" Width="1200" Height="600">
+<Window Title="Python图形用户界面样例" Width="400" Height="300">
 	<Menu DockPanel.Dock="Top" text="Menubar">
 		<MenuItem Header="File" options="{'underline':0}">
-			<MenuItem Command="Export Coefficients..."/>
-			<MenuItem Command="Export Time Domain Data..."/>
-			<MenuItem Command="Export Frequency Domain Data..."/>
-			<Separator/>
-			<MenuItem Command="Quit" options="{'accelerator':'Ctrl+Q','underline':0}"/>
+			<MenuItem id="meuNew" Command="New" options="{'accelerator':'Ctrl+N','underline':0}"/>
+			<Separator />
+			<MenuItem Command="Exit" options="{'accelerator':'Ctrl+E','underline':0}"/>
 		</MenuItem>
-		<MenuItem Header="Help" options="{'underline':0}">
-			<MenuItem Command="Info"/>
+		<MenuItem Header="Message Box">
+			<MenuItem id="meuShowInfoBox" Command="Info Box" options="{'accelerator':'Ctrl+I','underline':0}"/>
+			<MenuItem Command="Warn Box" options="{'accelerator':'Ctrl+W','underline':0}"/>
+			<MenuItem Command="Error Box" options="{'accelerator':'Ctrl+L','underline':0}"/>
+			<MenuItem Command="Choice Box" options="{'accelerator':'Ctrl+K','underline':0}"/>
+		</MenuItem>		
+		<MenuItem Header="Help">
+			<MenuItem Command="About"/>
 		</MenuItem>
 	</Menu>
 
-	<Toolbar text="Toolbar" layout="none">
-	
-	</Toolbar>
-
-	<Frame text="Time Domain" layout="pack" pack='{"side":"top","fill":"both","expand":True,"padx":10,"pady":(10,5)}'>
-		<MatPlot text="Filter Response in Time Domain" size="(480,180)" xLabel="Time (s)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(0,5),"pady":0}'/>
-		<MatPlot text="Window Function in Time Domain" size="(480,180)" xLabel="Time (s)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(5,0),"pady":0}'/>
-	</Frame>
-	<Frame text="Frequency Domain" layout ="pack" pack='{"side":"top","fill":"both","expand":True,"padx":10,"pady":(5,5)}'>
-		<MatPlot text="Filter Frequency Response" size="(480,180)" xLabel="Frequency (Hz)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(0,5),"pady":0}'/>
-		<MatPlot text="Window Function Frequency Response" size="(480,180)" xLabel="Frequency (Hz)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(5,0),"pady":0}'/>
-	</Frame>
-	<Frame text="Operation Area" layout ="pack" pack='{"side":"top","fill":"both","expand":True,"padx":10,"pady":(5,5)}'>
-		<LabelFrame text="Parameters" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(10,5),"pady":(5,10)}' childOpt="{'padx':10,'pady':5}">
-			<Label text="Sample Time(s):" layout="grid" grid="{'row':0,'column':0}"/>
-			<Entry text="Sample Time" tooltip="Unit is second" options="{'width':15}" layout="grid" grid="{'row':0,'column':1}"/>
-			<Label text="Filter Length:" layout="grid" grid="{'row':1,'column':0}"/>
-			<Entry text="Filter Length" options="{'width':15}" layout="grid" grid="{'row':1,'column':1}"/>
-			<Label text="Shift Samples:" layout="grid" grid="{'row':2,'column':0}"/>
-			<Entry text="Shift Samples" options="{'width':15}" layout="grid" grid="{'row':2,'column':1}"/>
-			<Label text="Low Frequency(Hz):" layout="grid" grid="{'row':0,'column':2}"/>
-			<Entry text="Low Frequency" options="{'width':15}" layout="grid" grid="{'row':0,'column':3}"/>
-			<Label text="High Frequency(Hz):" layout="grid" grid="{'row':1,'column':2}"/>
-			<Entry text="High Frequency" options="{'width':15}" layout="grid" grid="{'row':1,'column':3}"/>
-			<Label text="Window Function:" layout="grid" grid="{'row':2,'column':2}"/>
-			<Combobox text="Window Type" default="5" options="{'values':['Rectangular', 'Triangular', 'Welch', 'Sine', 'Hann', 'Hamming', 'Blackman', 'Nuttall', 'BlackmanNuttall', 'BlackmanHarris', 'FlatTop'],'state':'readonly','width':15}" layout="grid" grid="{'row':2,'column':3}"/>
-			<RadiobuttonGroup text="Filter Type" options="{'labelanchor':'n'}" layout="grid" grid="{'row':0,'column':4,'rowspan':3,'columnspan':2}">
-				<Radiobutton text="Low Pass"  value="0" layout="grid" grid="{'row':0,'column':1,'sticky':'w'}"/>
-				<Radiobutton text="High Pass" value="1" layout="grid" grid="{'row':0,'column':2,'sticky':'w'}"/>
-				<Radiobutton text="Band Pass" value="2" layout="grid" grid="{'row':1,'column':1,'sticky':'w'}"/>
-				<Radiobutton text="Band Stop" value="3" layout="grid" grid="{'row':1,'column':2,'sticky':'w'}"/>
-			</RadiobuttonGroup>
-			<RadiobuttonGroup text="Response Plot" options="{'labelanchor':'w'}" layout="grid" grid="{'row':0,'column':6,'rowspan':2,'columnspan':2}">
-				<Radiobutton text="Impulse" value="0" layout="grid" grid="{'row':0,'column':1,'sticky':'w'}"/>
-				<Radiobutton text="Step" 	value="1" layout="grid" grid="{'row':1,'column':1,'sticky':'w'}"/>
-			</RadiobuttonGroup>		
-			<Label text="Display:" layout="grid" grid="{'row':2,'column':6}"/>
-			<Combobox id="cmbDisplayType" default="0" options="{'values':['Both', 'Raw Only', 'Win Only'],'state':'readonly','width':15}" layout="grid" grid="{'row':2,'column':7}"/>
-		</LabelFrame>
-		<Button text="Design Filter" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(5,10),"pady":(12,10)}'/>
-	</Frame>		
-	<Statusbar text="Statusbar" layout ="pack" pack='{"side":"bottom","fill":"x","expand":True}'/>
+	<Notebook text="Notebook" layout="pack" pack="{'expand':1,'fill':'both'}">
+		<Tab text="第一页">
+			<LabelFrame text="控件示范区1" layout="grid" grid="{'row':0,'column':0,'padx':8,'pady':4}" childOpt="{'padx':3,'pady':1}">
+				<Label text="输入文字:" layout="grid" grid="{'row':0,'column':0,'sticky':'W'}"/>
+				<Entry text="name" tooltip="这是一个Entry" options="{'width':12}" layout="grid" grid="{'row':1,'column':0,'sticky':'W'}"/>
+				<Button text="点击之后&#xA;按钮失效" tooltip="这是一个Button" options="{'width':10}" layout="grid" grid="{'row':1,'column':2,'rowspan':2,'ipady':7}"/>
+				<Label text="请选择一本书:" layout="grid" grid="{'row':0,'column':1,'sticky':'W'}"/>
+				<Combobox text="bookChosen" default="0" tooltip="这是一个Combobox" options="{'values':['平凡的世界','亲爱的安德烈','看见','白夜行'],'state':'readonly','width':12}" layout="grid" grid="{'row':1,'column':1}"/>
+				<Spinbox text="blankSpin" tooltip="这是一个Spinbox" options="{'from_':10,'to':25,'width':5,'bd':8}" layout="grid" grid="{'row':2,'column':0}"/>
+				<Spinbox text="bookSpin" tooltip="这是一个Spinbox" options="{'values':('Python3入门', 'C语言','C++', 'Java', 'OpenCV'),'width':13,'bd':3}" layout="grid" grid="{'row':2,'column':1,'sticky':'W'}"/>
+				<ScrolledText text="scrolledtext" tooltip="这是一个ScrolledText" options="{'width':30,'height':5,'wrap':'word'}" layout="grid" grid="{'row':3,'column':0,'columnspan':3,'sticky':'WE'}"/>
+			</LabelFrame>
+		</Tab>
+		<Tab text="第二页">
+			<LabelFrame text="控件示范区2" layout="grid" grid="{'row':0,'column':0,'padx':8,'pady':4}">
+				<Checkbutton text="失效选项" var="varChkDis" select="True" options="{'state':'disabled'}" layout="grid" grid="{'row':0,'column':0,'sticky':'W'}"/>
+				<Checkbutton text="遵从内心" var="varChkUne" select="False" layout="grid" grid="{'row':0,'column':1,'sticky':'W'}"/>
+				<Checkbutton text="屈于现实" var="varChkEna" select="False" layout="grid" grid="{'row':0,'column':2,'sticky':'W'}"/>
+				<Radiobutton text="富强民主" var="varRadSel" value="0" layout="grid" grid="{'row':6,'column':0,'sticky':'W','columnspan':3}"/>
+				<Radiobutton text="文明和谐" var="varRadSel" value="1" layout="grid" grid="{'row':6,'column':1,'sticky':'W','columnspan':3}"/>
+				<Radiobutton text="自由平等" var="varRadSel" value="2" layout="grid" grid="{'row':6,'column':2,'sticky':'W','columnspan':3}"/>
+				<Radiobutton text="公正法治" var="varRadSel" value="3" layout="grid" grid="{'row':6,'column':3,'sticky':'W','columnspan':3}"/>
+				<Radiobutton text="爱国敬业" var="varRadSel" value="4" layout="grid" grid="{'row':7,'column':0,'sticky':'W','columnspan':3}"/>
+				<Radiobutton text="诚信友善" var="varRadSel" value="5" layout="grid" grid="{'row':7,'column':1,'sticky':'W','columnspan':3}"/>
+				<Style text="BW.TLabel" options="{'font':('Times', '10','bold')}"/>
+				<Label text="   社会主义核心价值观" options="{'style':'BW.TLabel'}" layout="grid" grid="{'row':7,'column':2,'sticky':'EW','columnspan':2}"/>
+				<LabelFrame text=" 嵌套区域 " layout="grid" grid="{'row':8,'column':0,'columnspan':4}" childOpt="{'padx':8,'pady':4}">
+					<Label text="你才25岁，你可以成为任何你想成为的人。" layout="grid" grid="{'row':0,'column':0}"/>
+					<Label text="不要在乎一城一池的得失，要执着。" layout="grid" grid="{'row':1,'column':0,'sticky':'W'}"/>
+				</LabelFrame>
+			</LabelFrame>
+		</Tab>
+		<Tab text="第三页">
+			<Frame text="tab3" options="{'bg':'#AFEEEE'}" layout="pack" pack="{}">
+                <Listbox id="lstHaa" layout="pack" pack="{'side': 'top'}"/>
+                <Button id="btnHaa" text="+" layout="pack" pack="{'side': 'bottom'}"/>
+			</Frame>
+		</Tab>
+		<Tab text="第四页">
+			<Frame text="tab4" options="{'bg':'#AFEEEE'}" layout="pack" pack="{}">
+				<Canvas text="Canvas1" options="{'width':162,'height':95,'highlightthickness':0,'bg':'#FFFF00'}" layout="grid" grid="{'row':0,'column':0}"/>
+				<Canvas text="Canvas2" options="{'width':162,'height':95,'highlightthickness':0,'bg':'#FFFF00'}" layout="grid" grid="{'row':1,'column':1}"/>
+			</Frame>
+		</Tab>
+	</Notebook>
 </Window>
