@@ -1,5 +1,4 @@
-<!-- <Window Title="FIR Designer" Height="1200" Width="540"> -->
-<Window Title="FIR Designer">
+<Window Title="FIR Designer" Width="1200" Height="600">
 	<Menu DockPanel.Dock="Top" text="Menubar">
 		<MenuItem Header="File" options="{'underline':0}">
 			<MenuItem Command="Export Coefficients..."/>
@@ -19,11 +18,11 @@
 
 	<Frame text="Time Domain" layout="pack" pack='{"side":"top","fill":"both","expand":True,"padx":10,"pady":(10,5)}'>
 		<MatPlot text="Filter Response in Time Domain" size="(480,180)" xLabel="Time (s)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(0,5),"pady":0}'/>
-		<MatPlot text="Window Function in Time Domain" xLabel="Time (s)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(5,0),"pady":0}'/>
+		<MatPlot text="Window Function in Time Domain" size="(480,180)" xLabel="Time (s)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(5,0),"pady":0}'/>
 	</Frame>
 	<Frame text="Frequency Domain" layout ="pack" pack='{"side":"top","fill":"both","expand":True,"padx":10,"pady":(5,5)}'>
-		<MatPlot text="Filter Frequency Response" xLabel="Frequency (Hz)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(0,5),"pady":0}'/>
-		<MatPlot text="Window Function Frequency Response" xLabel="Frequency (Hz)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(5,0),"pady":0}'/>
+		<MatPlot text="Filter Frequency Response" size="(480,180)" xLabel="Frequency (Hz)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(0,5),"pady":0}'/>
+		<MatPlot text="Window Function Frequency Response" size="(480,180)" xLabel="Frequency (Hz)" yLabel="" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(5,0),"pady":0}'/>
 	</Frame>
 	<Frame text="Operation Area" layout ="pack" pack='{"side":"top","fill":"both","expand":True,"padx":10,"pady":(5,5)}'>
 		<LabelFrame text="Parameters" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(10,5),"pady":(5,10)}' childOpt="{'padx':10,'pady':5}">

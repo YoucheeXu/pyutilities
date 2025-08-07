@@ -2,8 +2,14 @@
 # -*- coding: UTF-8 -*-
 import sys
 import os
+
+# from pathlib import Path
+# parentPath = str(Path(sys.path[0]).parent)
+# sys.path.insert(0, parentPath)
+
 import tkinter as tk
 import tkinter.messagebox as tkMessageBox
+import tkinter.filedialog as tkFileDialog
 import tkinter.ttk as ttk
 # import tkinter.tix as tix
 from tkinter import scrolledtext
@@ -15,7 +21,7 @@ except ImportError:
 
 try:
     from logit import pv
-    from matplot import MatPlot
+    from matplot import MatPlot     # 2.1
 except ImportError:
     from pyutilities.logit import pv
     from pyutilities.matplot import MatPlot
@@ -28,21 +34,24 @@ from idlelib.statusbar import MultiStatusBar
 from idlelib.tooltip import Hovertip
 
 
+__version__ = "3.2.0"
+
+
 class Toolbar(tk.Frame):
     def __init__(self, parent, resPath):
-        # super().__init__(self.__parent)
-        self.__parent = parent
+        # super().__init__(self._parent)
+        self._parent = parent
         # tk.Frame.__init__(self, parent)
-        super().__init__(self.__parent)
-        self.__resPath = resPath
-        # self.__tooltip = tix.Balloon(root)
+        super().__init__(self._parent)
+        self._resPath = resPath
+        # self._tooltip = tix.Balloon(root)
 
 
 class ImgPanel(tk.Label):
     def __init__(self, parent, text="Image Panel"):
-        self.__parent = parent
+        self._parent = parent
         # tk.Label.__init__(self, parent)
-        super().__init__(self.__parent)
+        super().__init__(self._parent)
         self.configure(text=text, anchor = tk.CENTER)
 
     def display_image(self, image):
@@ -56,7 +65,7 @@ class ImgPanel(tk.Label):
         image = PIL.ImageTk.PhotoImage(image)
 
         self.configure(image = image)
-        self.__image = image
+        self._image = image
 
 
 class Control:
@@ -96,13 +105,13 @@ class RadiobuttonCtrl(ttk.LabelFrame, Control):
     def __init__(self, parent, **cfgDict):
         super().__init__(parent)
         Control.__init__(self, "int")
-        self.__app = cfgDict["app"]
+        self._app = cfgDict["app"]
         self.configure(text=cfgDict["text"], **cfgDict["options"])
-        self.__radButtons = []
+        self._radButtons = []
 
     def add_radiobutton(self, **optDict):
         radbutton = ttk.Radiobutton(master=self, variable=self._varVal, **optDict)
-        self.__radButtons.append(radbutton)
+        self._radButtons.append(radbutton)
         return radbutton
 
 
@@ -129,9 +138,9 @@ class tkWin(tk.Frame):
 
         self._frmApp.protocol("WM_DELETE_WINDOW", self.exit_window)
 
-        self.__dictCtrl = {}
+        self._dictCtrl = {}
 
-    def __center_window(self, width: float, hight: float):
+    def _center_window(self, width: float, hight: float):
         '''
             设置窗口居中和宽高
             :param Width: 窗口宽度
@@ -156,7 +165,7 @@ class tkWin(tk.Frame):
             self._frmApp.destroy()
 
     def create_window(self, cfgFile: str):
-        self.__resPath = os.path.dirname(cfgFile)
+        self._resPath = os.path.dirname(cfgFile)
 
         elementTree = et.parse(cfgFile)
         win = elementTree.getroot()
@@ -166,25 +175,25 @@ class tkWin(tk.Frame):
         self._frmApp.title(self._title)
 
         if "Height" in winAttr:
-            width = int(winAttr["Height"])
-            hight = int(winAttr["Width"])
+            width = int(winAttr["Width"])
+            hight = int(winAttr["Height"])
 
-            self.__center_window(width, hight)
+            self._center_window(width, hight)
 
         for frm in list(win):
-            self.__create_controls(self._frmApp, frm, 0)
+            self._create_controls(self._frmApp, frm, 0)
 
-    def __create_controls(self, parent, cfg, level=0):
-        ctrl = self.__create_control(parent, cfg, level)
+    def _create_controls(self, parent, cfg, level=0):
+        ctrl = self._create_control(parent, cfg, level)
         tag = cfg.tag
         if tag in ["Menu", "Notebook", "RadiobuttonGroup", "Statusbar"]:
             pass
         else:
             for subCfg in list(cfg):
-                self.__create_controls(ctrl, subCfg, level + 1)
-        self.__assemble_control(ctrl, cfg.attrib, f"{'  '*level}")
+                self._create_controls(ctrl, subCfg, level + 1)
+        self._assemble_control(ctrl, cfg.attrib, f"{'  '*level}")
 
-    def __assemble_control(self, ctrl, atrDict, prefix=""):
+    def _assemble_control(self, ctrl, atrDict, prefix=""):
         # pv(atrDict)
         if "layout" in atrDict:
             if (atrDict["layout"] == "pack"):
@@ -204,7 +213,7 @@ class tkWin(tk.Frame):
 
         print(f"{prefix}, layout: {atrDict['layout']}")
 
-    def __create_control(self, parent, control, level=0):
+    def _create_control(self, parent, control, level=0):
         tag = control.tag
         atrDict = control.attrib
 
@@ -215,7 +224,6 @@ class tkWin(tk.Frame):
             print(f"{'  '*level}{tag}, text: {text}", end="")
         except Exception as r:
             print(f"{'  '*level}{tag}->error: {r}", end="")
-            return
 
         if("options" in atrDict):
             optDict = eval(atrDict["options"])
@@ -248,7 +256,7 @@ class tkWin(tk.Frame):
         elif tag == "Entry":
             ctrl = EntryCtrl(parent, **optDict)
         elif tag == "ImgButton":
-            imgFile = os.path.join(self.__resPath, atrDict["img"])
+            imgFile = os.path.join(self._resPath, atrDict["img"])
             img = PIL.Image.open(imgFile)
             eimg = PIL.ImageTk.PhotoImage(img)
             cmd = lambda: self.process_message(idCtrl, "Clicked")
@@ -274,7 +282,7 @@ class tkWin(tk.Frame):
                 tabCtrl = ttk.Frame(ctrl, **optDict)
                 ctrl.add(tabCtrl, text=subCfg.attrib["text"])
                 for item in list(subCfg):
-                    self.__create_controls(tabCtrl, item, level + 1)
+                    self._create_controls(tabCtrl, item, level + 1)
         elif tag == "RadiobuttonGroup":
             ctrl = RadiobuttonCtrl(parent, app=self, text=text, options=optDict)
             print()
@@ -285,7 +293,7 @@ class tkWin(tk.Frame):
                 text = radBtnAtrDict["text"]
                 radbutton = ctrl.add_radiobutton(value=val, text=text, command=cmd)
                 print(f"{'  '*(level + 1)}Control: Radiobutton, text: {text}", end="")
-                self.__assemble_control(radbutton, radBtnAtrDict)
+                self._assemble_control(radbutton, radBtnAtrDict)
         elif tag == "Radiobutton":
             varText = atrDict['var']
             varTextName = f"_var{atrDict['var']}"
@@ -311,19 +319,19 @@ class tkWin(tk.Frame):
             ctrl = ttk.Style()
             ctrl.configure(text, **optDict)
         elif tag == "Toolbar":
-            ctrl = Toolbar(parent, self.__resPath)
+            ctrl = Toolbar(parent, self._resPath)
             # pv(list(control))
             for subCtrl in list(control):
-                imgButton = self.__create_control(ctrl, subCtrl)
-                self.__assemble_control(imgButton, subCtrl.attrib)
+                imgButton = self._create_control(ctrl, subCtrl)
+                self._assemble_control(imgButton, subCtrl.attrib)
         else:
             raise Exception(f"{tag}: unknown Control")
 
         if "tooltip" in atrDict:
             Hovertip(ctrl, atrDict["tooltip"], hover_delay=500)
 
-        self.__dictCtrl.setdefault(idCtrl, ctrl)
-        # return self.__dictCtrl[idCtrl]
+        self._dictCtrl.setdefault(idCtrl, ctrl)
+        # return self._dictCtrl[idCtrl]
         return ctrl
 
     def disable_control(self, ctrl, disable=True):
@@ -395,7 +403,7 @@ class tkWin(tk.Frame):
         self._frmApp.config(menu=menubar)
 
     def get_control(self, idCtrl):
-        return self.__dictCtrl[idCtrl]
+        return self._dictCtrl[idCtrl]
 
     def show_info(self, *args):
         if(len(args) == 2):
