@@ -3,13 +3,8 @@
 import sys
 import os
 
-# from pathlib import Path
-# parentPath = str(Path(sys.path[0]).parent)
-# sys.path.insert(0, parentPath)
-
 import tkinter as tk
 import tkinter.messagebox as tkMessageBox
-import tkinter.filedialog as tkFileDialog
 import tkinter.ttk as ttk
 # import tkinter.tix as tix
 from tkinter import scrolledtext
@@ -21,7 +16,7 @@ except ImportError:
 
 try:
     from logit import pv
-    from matplot import MatPlot     # 2.1
+    from matplot import MatPlot
 except ImportError:
     from pyutilities.logit import pv
     from pyutilities.matplot import MatPlot
@@ -34,7 +29,24 @@ from idlelib.statusbar import MultiStatusBar
 from idlelib.tooltip import Hovertip
 
 
-__version__ = "3.2.0"
+__version__ = "3.2.1"
+
+# Button, Checkbutton, Entry, Frame, Label, LabelFrame, Menubutton, Radiobutton, Combobox, Separator, Notebook, ScrolledText, Spinbox, PanedWindow, Scale and Scrollbar, Progressbar, Sizegrip and Treeview
+'''
+TODO:
+    * Message Queue             OK
+    * ImageButton               OK
+    * RatioButtonGroup          OK
+    * To options                almost OK
+    * FileDialog
+    * Enable/Disable            OK
+    * Rest Control              PanedWindow, Scale, Progressbar, Sizegrip and Treeview
+    * Accelerator of Menu       OK
+    * Accelerator of global     almost OK
+    * EntryGroup
+    * tooltip                   OK
+    * unique of idCtrl
+'''
 
 
 class Toolbar(tk.Frame):
@@ -115,22 +127,6 @@ class RadiobuttonCtrl(ttk.LabelFrame, Control):
         return radbutton
 
 
-# Button, Checkbutton, Entry, Frame, Label, LabelFrame, Menubutton, Radiobutton, Combobox, Separator, Notebook, ScrolledText, Spinbox, PanedWindow, Scale and Scrollbar, Progressbar, Sizegrip and Treeview
-'''
-TODO:
-    * Message Queue             OK
-    * ImageButton               OK
-    * RatioButtonGroup          OK
-    * To options                almost OK
-    * FileDialog
-    * Enable/Disable            OK
-    * Rest Control              PanedWindow, Scale and Scrollbar, Progressbar, Sizegrip and Treeview
-    * Accelerator of Menu       OK
-    * Accelerator of global     almost OK
-    * EntryGroup
-    * tooltip                   OK
-    * unique of idCtrl
-'''
 class tkWin(tk.Frame):
     def __init__(self):
         self._frmApp = tk.Tk()
@@ -162,6 +158,11 @@ class tkWin(tk.Frame):
     def exit_window(self):
         res = tkMessageBox.askquestion('Exit Application', 'Do you really want to exit?')
         if res == 'yes':
+            try:
+                before_close = getattr(self, '_before_close')    # get before_close from child
+                before_close()
+            except Exception as r:
+                print(f"{r}")
             self._frmApp.destroy()
 
     def create_window(self, cfgFile: str):
@@ -200,6 +201,8 @@ class tkWin(tk.Frame):
                 ctrl.pack(**(eval(atrDict["pack"])))
             elif (atrDict["layout"] == "grid"):
                 ctrl.grid(**(eval(atrDict["grid"])))
+            elif (atrDict["layout"] == "place"):
+                ctrl.place(**(eval(atrDict["place"])))
             else:
                 print(f"{prefix}, unknown layout of {atrDict['layout']}")
                 return
@@ -230,102 +233,118 @@ class tkWin(tk.Frame):
         else:
             optDict = {}
 
-        if tag == "LabelFrame":
-            ctrl = ttk.LabelFrame(parent, text=text, **optDict)
-            print()
-        elif tag == "Frame" or tag == "Tab":
-            ctrl = tk.Frame(parent, **optDict)
-            print()
-        elif tag == "Button":
-            cmd = lambda: self.process_message(idCtrl, "Clicked")
-            ctrl = ttk.Button(parent, text=str(text), command=cmd, **optDict)
-        elif tag == "Canvas":
-            ctrl = tk.Canvas(parent, **optDict)
-        elif tag == "Checkbutton":
-            varText = atrDict['var']
-            varTextName = f"_var{atrDict['var']}"
-            if varTextName not in self.__dict__:
-                self.__dict__[varTextName] = tk.IntVar()
-            variable = self.__dict__[varTextName]
-            ctrl = tk.Checkbutton(parent, text=text, variable=variable, **optDict)
-            cmd = lambda u0, u1, u2: self.process_message(varText, "Changed", variable.get())
-            variable.trace('w', cmd)
-            if(atrDict["select"] == "1"): ctrl.select()
-        elif tag == "Combobox":
-            ctrl = ComboboxCtrl(parent, app=self, idCtrl=idCtrl, default=int(atrDict["default"]), optDict=optDict)
-        elif tag == "Entry":
-            ctrl = EntryCtrl(parent, **optDict)
-        elif tag == "ImgButton":
-            imgFile = os.path.join(self._resPath, atrDict["img"])
-            img = PIL.Image.open(imgFile)
-            eimg = PIL.ImageTk.PhotoImage(img)
-            cmd = lambda: self.process_message(idCtrl, "Clicked")
-            ctrl = tk.Button(parent, image=eimg, relief=tk.FLAT, command=cmd, **optDict)
-            ctrl.image = eimg
-        elif tag == "ImgPanel":
-            ctrl = ImgPanel(parent, text)
-        elif tag == "Label":
-            ctrl = ttk.Label(parent, text=text, **optDict)
-        elif tag == "MatPlot":
-            if("size" in atrDict):
-                size = eval(atrDict["size"])
-                ctrl = MatPlot(parent, text, atrDict["xLabel"], atrDict["yLabel"], size)
+        try:
+            if tag == "LabelFrame":
+                ctrl = ttk.LabelFrame(parent, text=text, **optDict)
+                print()
+            elif tag == "Frame" or tag == "Tab":
+                ctrl = tk.Frame(parent, **optDict)
+                print()
+            elif tag == "Button":
+                cmd = lambda: self.process_message(idCtrl, "Clicked")
+                ctrl = ttk.Button(parent, text=str(text), command=cmd, **optDict)
+            elif tag == "Canvas":
+                ctrl = tk.Canvas(parent, **optDict)
+            elif tag == "Checkbutton":
+                varText = atrDict['var']
+                varTextName = f"_var{atrDict['var']}"
+                if varTextName not in self.__dict__:
+                    self.__dict__[varTextName] = tk.IntVar()
+                variable = self.__dict__[varTextName]
+                ctrl = tk.Checkbutton(parent, text=text, variable=variable, **optDict)
+                cmd = lambda u0, u1, u2: self.process_message(varText, "Changed", variable.get())
+                variable.trace('w', cmd)
+                if(atrDict["select"] == "1"): ctrl.select()
+            elif tag == "Combobox":
+                ctrl = ComboboxCtrl(parent, app=self, idCtrl=idCtrl, default=int(atrDict["default"]), optDict=optDict)
+            elif tag == "Entry":
+                # if "textvariable" in optDict:
+                    # varText = optDict['textvariable']
+                    # varTextName = varText[varText.rfind('.') + 1:]
+                    # print(f'\nvarTextName: {varTextName}')
+                    # if varTextName not in self.__dict__:
+                        # self.__dict__[varTextName] = tk.StringVar()
+                    # # variable = self.__dict__[varTextName]
+                ctrl = EntryCtrl(parent, **optDict)
+            elif tag == "ImgButton":
+                imgFile = os.path.join(self._resPath, atrDict["img"])
+                img = PIL.Image.open(imgFile)
+                eimg = PIL.ImageTk.PhotoImage(img)
+                cmd = lambda: self.process_message(idCtrl, "Clicked")
+                ctrl = tk.Button(parent, image=eimg, relief=tk.FLAT, command=cmd, **optDict)
+                ctrl.image = eimg
+            elif tag == "ImgPanel":
+                ctrl = ImgPanel(parent, text)
+            elif tag == "Label":
+                ctrl = ttk.Label(parent, text=text, **optDict)
+            elif tag == "MatPlot":
+                if("size" in atrDict):
+                    size = eval(atrDict["size"])
+                    ctrl = MatPlot(parent, text, atrDict["xLabel"], atrDict["yLabel"], size)
+                else:
+                    ctrl = MatPlot(parent, text, atrDict["xLabel"], atrDict["yLabel"])
+            elif tag == "Menu":
+                print()
+                ctrl = self.create_menu(control);
+            elif tag == "Notebook":
+                ctrl = ttk.Notebook(parent, **optDict)
+                print()
+                for subCfg in list(control):
+                    tabCtrl = ttk.Frame(ctrl, **optDict)
+                    ctrl.add(tabCtrl, text=subCfg.attrib["text"])
+                    for item in list(subCfg):
+                        self._create_controls(tabCtrl, item, level + 1)
+            elif tag == "RadiobuttonGroup":
+                ctrl = RadiobuttonCtrl(parent, app=self, text=text, options=optDict)
+                print()
+                for radBtn in list(control):
+                    radBtnAtrDict = radBtn.attrib
+                    val = int(radBtnAtrDict["value"])
+                    cmd = lambda: self.process_message(idCtrl, "Changed", ctrl.get_text())
+                    text = radBtnAtrDict["text"]
+                    radbutton = ctrl.add_radiobutton(value=val, text=text, command=cmd)
+                    print(f"{'  '*(level + 1)}Control: Radiobutton, text: {text}", end="")
+                    self._assemble_control(radbutton, radBtnAtrDict)
+            elif tag == "Radiobutton":
+                varText = atrDict['var']
+                varTextName = f"_var{atrDict['var']}"
+                value = int(atrDict["value"])
+                if varTextName not in self.__dict__:
+                    self.__dict__[varTextName] = tk.IntVar()
+                variable = self.__dict__[varTextName]
+                idCtrl = varText
+                cmd = lambda: self.process_message(idCtrl, "Changed", variable.get())
+                # print(f", title = {title}", end="")
+                ctrl = ttk.Radiobutton(parent, variable=variable, value=int(atrDict["value"]), text=text, command=cmd)
+                # pv(ctrl, end="")
+            elif tag == "Statusbar":
+                ctrl = MultiStatusBar(parent)
+                for label in list(control):
+                    ctrl.set_label(**label.attrib)
+            elif tag == "ScrolledText":
+                ctrl = scrolledtext.ScrolledText(parent, **optDict)
+            elif tag == "Spinbox":
+                cmd = lambda: self.process_message(idCtrl, "Changed")
+                ctrl = tk.Spinbox(parent, command=cmd, **optDict)
+            elif tag == "Style":
+                ctrl = ttk.Style()
+                ctrl.configure(text, **optDict)
+            elif tag == "Toolbar":
+                ctrl = Toolbar(parent, self._resPath)
+                # pv(list(control))
+                for subCtrl in list(control):
+                    imgButton = self._create_control(ctrl, subCtrl)
+                    self._assemble_control(imgButton, subCtrl.attrib)
+            elif tag == "Scrollbar":
+                ctrl = tk.Scrollbar(parent)
+                ctrl.configure(**optDict)
+            elif tag == "Listbox":
+                ctrl = tk.Listbox(parent)
+                ctrl.configure(**optDict)
             else:
-                ctrl = MatPlot(parent, text, atrDict["xLabel"], atrDict["yLabel"])
-        elif tag == "Menu":
-            print()
-            ctrl = self.create_menu(control);
-        elif tag == "Notebook":
-            ctrl = ttk.Notebook(parent, **optDict)
-            print()
-            for subCfg in list(control):
-                tabCtrl = ttk.Frame(ctrl, **optDict)
-                ctrl.add(tabCtrl, text=subCfg.attrib["text"])
-                for item in list(subCfg):
-                    self._create_controls(tabCtrl, item, level + 1)
-        elif tag == "RadiobuttonGroup":
-            ctrl = RadiobuttonCtrl(parent, app=self, text=text, options=optDict)
-            print()
-            for radBtn in list(control):
-                radBtnAtrDict = radBtn.attrib
-                val = int(radBtnAtrDict["value"])
-                cmd = lambda: self.process_message(idCtrl, "Changed", ctrl.get_text())
-                text = radBtnAtrDict["text"]
-                radbutton = ctrl.add_radiobutton(value=val, text=text, command=cmd)
-                print(f"{'  '*(level + 1)}Control: Radiobutton, text: {text}", end="")
-                self._assemble_control(radbutton, radBtnAtrDict)
-        elif tag == "Radiobutton":
-            varText = atrDict['var']
-            varTextName = f"_var{atrDict['var']}"
-            value = int(atrDict["value"])
-            if varTextName not in self.__dict__:
-                self.__dict__[varTextName] = tk.IntVar()
-            variable = self.__dict__[varTextName]
-            idCtrl = varText
-            cmd = lambda: self.process_message(idCtrl, "Changed", variable.get())
-            # print(f", title = {title}", end="")
-            ctrl = ttk.Radiobutton(parent, variable=variable, value=int(atrDict["value"]), text=text, command=cmd)
-            # pv(ctrl, end="")
-        elif tag == "Statusbar":
-            ctrl = MultiStatusBar(parent)
-            for label in list(control):
-                ctrl.set_label(**label.attrib)
-        elif tag == "ScrolledText":
-            ctrl = scrolledtext.ScrolledText(parent, **optDict)
-        elif tag == "Spinbox":
-            cmd = lambda: self.process_message(idCtrl, "Changed")
-            ctrl = tk.Spinbox(parent, command=cmd, **optDict)
-        elif tag == "Style":
-            ctrl = ttk.Style()
-            ctrl.configure(text, **optDict)
-        elif tag == "Toolbar":
-            ctrl = Toolbar(parent, self._resPath)
-            # pv(list(control))
-            for subCtrl in list(control):
-                imgButton = self._create_control(ctrl, subCtrl)
-                self._assemble_control(imgButton, subCtrl.attrib)
-        else:
-            raise Exception(f"{tag}: unknown Control")
+                raise Exception(f"{tag}: unknown Control")
+        except Exception as r:
+            print(f"\n{'  '*level}{tag}->error: {r}", end="")
 
         if "tooltip" in atrDict:
             Hovertip(ctrl, atrDict["tooltip"], hover_delay=500)
@@ -334,8 +353,8 @@ class tkWin(tk.Frame):
         # return self._dictCtrl[idCtrl]
         return ctrl
 
-    def disable_control(self, ctrl, disable=True):
-        if disable:
+    def disable_control(self, ctrl, bDisbl=True):
+        if bDisbl:
             ctrl.configure(state='disabled')
         else:
             ctrl.configure(state='normal')
@@ -458,6 +477,7 @@ if __name__ == '__main__':
                 super().process_message(idCtrl, msg, extMsg)
     eapp = exampleApp()
     curPath = eapp.get_path()
+    # winSampleXml = os.path.join(curPath, 'resources', 'window3_2Sample1.xml')
     win_xml = os.path.join(curPath, 'resources', 'windowSample.xml')
     eapp.create_window(win_xml)
     eapp.go()
