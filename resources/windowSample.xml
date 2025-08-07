@@ -49,7 +49,7 @@
 				<Radiobutton text="Step" 	value="1" layout="grid" grid="{'row':1,'column':1,'sticky':'w'}"/>
 			</RadiobuttonGroup>		
 			<Label text="Display:" layout="grid" grid="{'row':2,'column':6}"/>
-			<Combobox text="Display Type" default="0" options="{'values':['Both', 'Raw Only', 'Win Only'],'state':'readonly','width':15}" layout="grid" grid="{'row':2,'column':7}"/>
+			<Combobox id="cmbDisplayType" default="0" options="{'values':['Both', 'Raw Only', 'Win Only'],'state':'readonly','width':15}" layout="grid" grid="{'row':2,'column':7}"/>
 		</LabelFrame>
 		<Button text="Design Filter" layout="pack" pack='{"side":"left","fill":"both","expand":True,"padx":(5,10),"pady":(12,10)}'/>
 	</Frame>		
