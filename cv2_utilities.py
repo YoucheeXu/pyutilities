@@ -26,11 +26,11 @@ def show_image(image: cv2.typing.MatLike):
     _ = cv2.waitKey(0)
 
 
-def read_image(impath: str):
+def read_image(impath: str, flags: int = cv2.IMREAD_UNCHANGED):
     # load the image from disk
     # impath_gbk = impath.encode('gbk')        # unicode转gbk，字符串变为字节数组
-    return cv2.imdecode(np.fromfile(impath, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
     # return cv2.imread(impath_gbk.decode(), cv2.IMREAD_UNCHANGED)    # 字节数组直接转字符串，不解码
+    return cv2.imdecode(np.fromfile(impath, dtype=np.uint8), flags)
 
 
 def scale_image(image: cv2.typing.MatLike, w: int, h: int, interp: int = cv2.INTER_AREA):
