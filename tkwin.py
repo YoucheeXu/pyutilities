@@ -31,7 +31,7 @@ except ImportError:
     from pyutilities.winbasic import EventHanlder, Control, WinBasic
 
 
-__version__ = "3.3.2"
+__version__ = "3.3.3"
 IS_WINDOWS = platform.system() == "Windows"
 
 
@@ -162,6 +162,9 @@ class ComboboxCtrl(ttk.Combobox):
     def get_val(self) -> str:
         return self._var.get()
 
+    def set_val(self, val: str):
+        self._var.set(val)
+
 
 class RadiobuttonGroupCtrl(ttk.LabelFrame):
     def __init__(self, parent: tk.Misc, app: WinBasic, *,
@@ -171,6 +174,7 @@ class RadiobuttonGroupCtrl(ttk.LabelFrame):
         self._idself: str = idself
         self._var_val: tk.IntVar = tk.IntVar()
         self._app: WinBasic = app
+        # pv(options)
         _ = self.configure(text=text, **options)
         self._radbuttons_lst: list[ttk.Radiobutton] = []
         _ = self._create_subctrls(subctrlcfg, level)
@@ -200,7 +204,7 @@ class RadiobuttonGroupCtrl(ttk.LabelFrame):
 
     @override
     def destroy(self):
-        po("RadiobuttonCtrl destroy")
+        po("RadiobuttonGroupCtrl destroy")
         for radbutton in self._radbuttons_lst:
             # print(f"going to del {id_ctrl}")
             radbutton.destroy()
@@ -603,13 +607,14 @@ class tkWin(WinBasic):
                     img = os.path.join(self._res_path, img)
                 ctrl = ImagePanelCtrl(parent, img, **options)
             case "MatPlot":
+                assert text is not None
                 if "size" in attr_dict:
                     size = cast(tuple[float, float], literal_eval(attr_dict["size"]))
+                    ctrl = MatPlotCtrl(parent, text, attr_dict["xLabel"],
+                        attr_dict["yLabel"], size)
                 else:
-                    size = None
-                assert text is not None
-                ctrl = MatPlotCtrl(parent, text, attr_dict["xLabel"],
-                    attr_dict["yLabel"], size)
+                    ctrl = MatPlotCtrl(parent, text, attr_dict["xLabel"],
+                        attr_dict["yLabel"])
             case "Menu":
                 print()
                 ctrl = self.create_menu(ctrl_cfg, **options)
@@ -618,7 +623,7 @@ class tkWin(WinBasic):
                 assert text is not None
                 ctrl = RadiobuttonGroupCtrl(parent, self, idself=idctrl,
                     text=text, subctrlcfg=ctrl_cfg,
-                    level=level, options=options)
+                    level=level, **options)
                 print()
             case "Radiobutton":
                 assert text is not None
