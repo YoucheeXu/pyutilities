@@ -31,7 +31,7 @@ except ImportError:
     from pyutilities.winbasic import EventHanlder, Control, WinBasic
 
 
-__version__ = "3.3.3"
+__version__ = "3.3.4"
 IS_WINDOWS = platform.system() == "Windows"
 
 
@@ -270,15 +270,21 @@ class DialogCtrl(ttk.Frame):
         self._top: tk.Toplevel | None = None
         self._app: WinBasic = app
         self._title: str = title
+        self._alive: bool = False
         self._idself: str = idself
         self._subctrlcfg_list: list[et.Element] = subctrlcfg_list
         self._confirm: bool = False
         self._confirm_handler: EventHanlder | None = None
         self._idctrl_list: list[str] = []
 
+    @property
+    def alive(self):
+        return self._alive
+
     def do_show(self):
         print(f"show Dialog {self._title}")
         # self.deiconify()
+        self._alive = True
         self._top = tk.Toplevel(self._parent)
         self._top.title(self._title)
         # x, y, _, _ = self._app.get_winsize()
@@ -408,6 +414,7 @@ class DialogCtrl(ttk.Frame):
             self._idctrl_list.clear()
             self._top.destroy()
             self._top = None
+        self._alive = False
         super().destroy()
 
 
@@ -430,7 +437,7 @@ class tkWin(WinBasic):
         # self._win.rowconfigure(0, weight=1)
 
         self._idctrl_dict: dict[str, tk.Misc] = {}
-        self._eventhandler_dict: dict[str, EventHanlder] = {}
+        self._eventhandler_dict: dict[str, list[EventHanlder]] = {}
         self._cur_path: str = cur_path
 
         self._title: str = ""
@@ -810,7 +817,11 @@ class tkWin(WinBasic):
 
     @override
     def register_eventhandler(self, idctrl: str, handler: EventHanlder):
-        self._eventhandler_dict[idctrl] = handler
+        handlerlist = self._eventhandler_dict.get(idctrl)
+        if handlerlist is not None:
+            self._eventhandler_dict[idctrl].append(handler)
+        else:
+            self._eventhandler_dict[idctrl] = [handler]
 
     # def process_message(self, idctrl: str, *args, **kwargs):
     @override
@@ -819,12 +830,14 @@ class tkWin(WinBasic):
             self.exit_window()
             return
         if len(self._eventhandler_dict) != 0:
-            func = self._eventhandler_dict.get(idctrl, None)
-            if func is not None:
+            funcs = self._eventhandler_dict.get(idctrl, None)
+            if funcs is not None:
                 # args = list(args)
                 # args.insert(0, id_ctrl)
                 # args = tuple(args)
-                return func(idctrl, **kwargs)
+                for func in funcs:
+                    func(idctrl, **kwargs)
+                return
         po(f"undeal msg of {idctrl}: {kwargs}")
 
     def go(self):
