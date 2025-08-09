@@ -35,7 +35,7 @@ except ImportError:
     from pyutilities.winbasic import EventHanlder, Control, Dialog, WinBasic
 
 
-__version__ = "4.1.1"
+__version__ = "4.2.0"
 IS_WINDOWS = platform.system() == "Windows"
 
 
@@ -433,7 +433,7 @@ class FrameCtrl(tkControl):
         self._app: WinBasic = app
 
 
-class ScrollableFrame(tkControl):
+class ScrollableFrameCtrl(tkControl):
     def __init__(self, parent: tk.Widget, idself: str,
             width: int = 0, height: int = 0, **options: Any):
         outter = ttk.Frame(parent, **options)
@@ -442,8 +442,8 @@ class ScrollableFrame(tkControl):
         self._scrollable_frame: ttk.Frame = ttk.Frame(self._canvas)
         # super().__init__(parent, "", idself, self._scrollable_frame)
 
-        scrollbar = ttk.Scrollbar(outter, orient="vertical", command=self._canvas.yview)
-        
+        self._scrollbar = ttk.Scrollbar(outter, orient="vertical", command=self._canvas.yview)
+
         _ = self._scrollable_frame.bind(
             "<Configure>",
             lambda e: self._canvas.configure(
@@ -452,10 +452,10 @@ class ScrollableFrame(tkControl):
         )
 
         _ = self._canvas.create_window((0, 0), window=self._scrollable_frame, anchor="nw")
-        _ = self._canvas.configure(yscrollcommand=scrollbar.set)
+        _ = self._canvas.configure(yscrollcommand=self._scrollbar.set)
 
         self._canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        self._scrollbar.pack(side="right", fill="y")
         # 绑定滚动条事件  
         _ = self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
@@ -467,6 +467,14 @@ class ScrollableFrame(tkControl):
     @property
     def control(self):
         return self._scrollable_frame
+
+    @override
+    def destroy(self):
+        po(f"ScrollableFrame {self._idself} destroy")
+        self._scrollable_frame.destroy()
+        self._scrollbar.destroy()
+        self._canvas.destroy()
+        super().destroy()
 
 
 # TODO: 1. Tip
@@ -557,6 +565,7 @@ class ToolbarCtrl(tkControl):
         super().destroy()
 
 
+# TODO: auto scrollable or not
 class DialogCtrl(Dialog):
     def __init__(self, parent: tk.Widget, app: WinBasic, idself: str, *,
             title: str, width: int, height: int,
@@ -619,17 +628,19 @@ class DialogCtrl(Dialog):
         frmdlg_xml = self._app.create_xml("Top", {})
 
         id_frmain = f"frmMain{iddlg}"
-        frmain_xml = self._app.create_xml("Frame", {"id": id_frmain}, frmdlg_xml)
-        _, frm_main = self._app.create_control(self._top,
+        # frmain_xml = self._app.create_xml("Frame", {"id": id_frmain}, frmdlg_xml)
+        frmain_xml = self._app.create_xml("ScrollableFrame", {"id": id_frmain,
+            "Width": f"{self._ww-30}", "Height": f"{self._hh-160}"}, frmdlg_xml)
+        _, frmmain = self._app.create_control(self._top,
             frmain_xml, 0, self)
-        # frm_main = ScrollableFrame(self._top, "", self._ww, self._hh)
         self._idctrl_list.append(id_frmain)
+        frm_main = frmmain.control
 
         for sub_ctrl in self._subctrlcfg_list:
             subidctrl_list = self._app.create_controls(frm_main, sub_ctrl, 1, self)
             self._idctrl_list.extend(subidctrl_list)
 
-        _ = self._app.assemble_control(frm_main, {"layout": "pack",
+        _ = self._app.assemble_control(frmmain, {"layout": "pack",
             "pack": "{'side':'top','fill':'both','expand':True,'padx':5,'pady':5}"})
 
         frmbot_xml = self._app.create_xml("Frame", {"id": f"frmBot{iddlg}"}, frmdlg_xml)
@@ -773,6 +784,7 @@ class tkWin(WinBasic):
                 ctypes.windll.user32.SetProcessDPIAware()
             # ctypes.windll.shcore.SetProcessDpiAwareness(1)
             scale_fact = cast(float, ctypes.windll.shcore.GetScaleFactorForDevice(0))
+            pv(scale_fact)
             self._win.tk.call("tk", "scaling", scale_fact / 90)
 
         exit_window = partial(self.exit_window)
@@ -909,6 +921,11 @@ class tkWin(WinBasic):
             case "Frame" | "Tab":
                 ctrl = tk.Frame(master, **options)
                 # ctrl = FrameCtrl(parent, **options)
+                self.debug_print()
+            case "ScrollableFrame":
+                ctrl = ScrollableFrameCtrl(parent, idctrl,
+                    int(attr_dict["Width"]), int(attr_dict["Height"]),
+                    **options)
                 self.debug_print()
             case "Label":
                 assert text is not None
