@@ -2,26 +2,49 @@
 # -*- coding: UTF-8 -*-
 import abc
 import xml.etree.ElementTree as et
-import tkinter as tk
-from typing import Any, TypeAlias
-from collections.abc import Callable
+from typing import cast, Literal, Any, Protocol, override
+# from typing import TypeAlias
+# from collections.abc import Callable, Mapping
+from collections import OrderedDict
 
 try:
     from logit import pv, pe, po
 except ImportError:
     from pyutilities.logit import pv, pe, po
 
-
 # EventHanlder: TypeAlias = Callable[[tuple[Any, ...], dict[str, Any]], Any]
-EventHanlder: TypeAlias = Callable[[str, dict[str, Any]], Any]
+# EventHanlder: TypeAlias = Callable[[dict[str, Any]], Any]
+# EventHanlder: TypeAlias = Callable[[Mapping[str, Any]], Any]
+class EventHanlder(Protocol):
+    def __call__(self, **kwargs: Any) -> Any: ...
 
 
-class Control(abc.ABC):
+# EventsHanlder: TypeAlias = Callable[[str, dict[str, Any]], Any]
+# EventsHanlder: TypeAlias = Callable[[str, Mapping[str, Any]], Any]
+class EventsHanlder(Protocol):
+    def __call__(self, idmsg: str, **kwargs: Any) -> Any: ...
+
+
+class Widget(abc.ABC):
     def __init__(self):
         pass
 
     @abc.abstractmethod
-    def configure(self, **kwargs):
+    def process_message(self, idmsg: str, **kwargs: Any) -> Any:
+        pass
+
+
+class Control(abc.ABC):
+    def __init__(self, title: str, idself: str):
+        self._title: str = title
+        self._idself: str = idself
+
+    @property
+    def title(self):
+        return self._title
+
+    @abc.abstractmethod
+    def configure(self, **kwargs: Any):
         pass
 
     @abc.abstractmethod
@@ -29,25 +52,52 @@ class Control(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __setitem__(self, item: str, value):
-        pass
-
-    @abc.abstractmethod
-    def disable(self, is_disbl: bool = True):
+    def __setitem__(self, item: str, value: Any):
         pass
 
     @abc.abstractmethod
     def hide(self, is_hide: bool = True):
         pass
 
+    def show(self):
+        self.hide(False)
+
+    @abc.abstractmethod
+    def disable(self, is_disbl: bool = True):
+        pass
+
+    def enable(self):
+        self.disable(False)
+
     @abc.abstractmethod
     def destroy(self):
         pass
 
 
-class MsgLoop:
-    def __init__(self):
+class Dialog:
+    def __init__(self, title: str):
+        self._xx: int = 0
+        self._yy: int = 0
+        self._ww: int = 0
+        self._hh: int = 0
+        self._title: str = title
         self._eventhandler_dict: dict[str, list[EventHanlder]] = {}
+        self._msgs_hanlders: list[tuple[int, list[str], EventsHanlder]] = []
+
+    @property
+    def title(self):
+        return self._title
+
+    def set_title(self, val: str):
+        self._title = val
+
+    @property
+    def pos(self):
+        return self._xx, self._yy
+
+    @property
+    def size(self):
+        return self._ww, self._hh
 
     def register_eventhandler(self, idmsg: str, handler: EventHanlder):
         handlerlist = self._eventhandler_dict.get(idmsg)
@@ -56,47 +106,96 @@ class MsgLoop:
         else:
             self._eventhandler_dict[idmsg] = [handler]
 
-    def process_message(self, idmsg: str, **kwargs: Any):
+    def filter_message(self, hanlder: EventsHanlder,
+            typ: Literal[-1, 0, 1] = 0, msglst: list[str] | None = None):
+        """filter message to deal with
+
+        Args:
+            typ ():
+                1: filter all message in msglst
+                0: all message
+                -1: filter any message except in msglst
+            msglst(): message list
+            hanlder (): hanlder to deal message
+
+        Returns:
+            Any: the result.
+
+        Raises:
+            ValueError: If `param1` is equal to `param2`.
+        """
+        if msglst is not None:
+            self._msgs_hanlders.append((typ, msglst, hanlder))
+        else:
+            self._msgs_hanlders.append((typ, [], hanlder))
+
+    def process_message(self, idmsg: str, **kwargs: Any) -> Any:
+        for typ, msglst, hander in self._msgs_hanlders:
+            if typ == 0:
+                ret = hander(idmsg, **kwargs)
+                if ret is not None:
+                    return ret
+            elif typ == 1:
+                if idmsg in msglst:
+                    ret = hander(idmsg, **kwargs)
+                    if ret is not None:
+                        return ret
+            elif typ == -1:
+                if idmsg not in msglst:
+                    ret = hander(idmsg, **kwargs)
+                    if ret is not None:
+                        return ret
+
         funcs = self._eventhandler_dict.get(idmsg, None)
         if funcs is not None:
             ret = None
             for func in funcs:
                 ret = func(**kwargs)
             return ret
-        po(f"undeal msg of {idctrl}: {kwargs}")
+
+        po(f"undeal msg of {idmsg}: {kwargs}")
+
+    def destroy(self, **kwargs: Any):
+        # self._eventhandler_dict.clear()
+        # self._eventhandler_dict = {}
+        # self._msgs_hanlders.clear()
+        # self._msgs_hanlders = []
+        pass
 
 
-class WinBasic(MsgLoop, metaclass=abc.ABCMeta):
+class WinBasic(abc.ABC, Dialog):
     def __init__(self):
-        super().__init__()
-        self._x: int = 0
-        self._y: int = 0
-        self._w: int = 0
-        self._h: int = 0
-        # self._win: tk.Tk = tk.Tk()
-        self._idctrl_dict: dict[str, Control] = {}
+        Dialog.__init__(self, "")
+        # self._idctrl_dict: dict[str, object] = {}
+        self._idctrl_dict: OrderedDict[str, object] = OrderedDict()
 
     @abc.abstractmethod
     def create_window(self, xmlfile: str):
         pass
 
-    @abc.abstractmethod
-    def get_winsize(self) -> tuple[int, int, int, int]:
-        pass
-
     def create_xml(self, tag: str, attr_dict: dict[str, str], root: et.Element | None = None) -> et.Element:
-        # try:
         if root is not None:
             item_xml = et.SubElement(root, tag)
         else:
             item_xml = et.Element(tag)
         item_xml.attrib = attr_dict.copy()
         return item_xml
-        # except RuntimeError as r:
-        #     print(f"\n{tag}:{atr_dict['id']}->errot to create_item: {r}")
 
-    def create_controls(self, parent: tk.Misc, ctrl_cfg: et.Element, level: int = 0) -> list[str]:
+    @abc.abstractmethod
+    def create_control(self, parent: object, ctrl_cfg: et.Element,
+            # level: int = 0, owner: Dialog | None = None) -> tuple[str, object]:
+            level: int = 0) -> tuple[str, object]:
+        pass
+
+    @abc.abstractmethod
+    def assemble_control(self, ctrl: object, attr_dict: dict[str, str], prefix: str = ""):
+        pass
+
+    def create_controls(self, parent: object, ctrl_cfg: et.Element,
+            # level: int = 0, owner: Dialog | None = None) -> list[str]:
+            level: int = 0) -> list[str]:
         idctrl_list: list[str] = []
+        # idctrl, ctrl = self.create_control(parent, ctrl_cfg, level, owner)
         idctrl, ctrl = self.create_control(parent, ctrl_cfg, level)
         idctrl_list.append(idctrl)
         tag = ctrl_cfg.tag
@@ -105,29 +204,17 @@ class WinBasic(MsgLoop, metaclass=abc.ABCMeta):
             pass
         else:
             for subctrl_cfg in list(ctrl_cfg):
+                # subidctrl_list = self.create_controls(ctrl, subctrl_cfg, level + 1, owner)
                 subidctrl_list = self.create_controls(ctrl, subctrl_cfg, level + 1)
                 idctrl_list.extend(subidctrl_list)
         self.assemble_control(ctrl, ctrl_cfg.attrib, f"{'  '*level}")
         return idctrl_list
 
-    @abc.abstractmethod
-    def create_control(self, parent: tk.Misc, ctrl_cfg: et.Element, level: int = 0) -> tuple[str, tk.Misc]:
-        pass
-
-    @abc.abstractmethod
-    def assemble_control(self, ctrl: tk.Misc, attr_dict: dict[str, str], prefix: str = ""):
-        pass
-
     def delete_control(self, idctrl: str):
-        self._idctrl_dict[idctrl].destroy()
+        # if idctrl in self._idctrl_dict:
+        ctrl = cast(Control, self._idctrl_dict[idctrl])
+        ctrl.destroy()
         del self._idctrl_dict[idctrl]
-
-    def disable_control(self, ctrl: tk.Misc, is_disbl: bool = True):
-        assert isinstance(ctrl, tk.Widget)
-        if is_disbl:
-            ctrl.configure(state="disabled")
-        else:
-            ctrl.configure(state="normal")
 
     def get_control(self, idctrl: str):
         return self._idctrl_dict[idctrl]
@@ -137,9 +224,15 @@ class WinBasic(MsgLoop, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def go():
+    def go(self):
         pass
 
-    # # def process_message(self, idctrl: str, *args: Any, **kwargs: Any):
-    # def process_message(self, idmsg: str, **kwargs: Any):
-    #     return MsgLoop.process_message(self, idmsg, **kwargs)
+    @override
+    def destroy(self, **kwargs: Any):
+        # pv(self._idctrl_dict.keys())
+        for idctrl in reversed(list(self._idctrl_dict.keys())):
+            if idctrl in self._idctrl_dict:
+                self.delete_control(idctrl)
+        self._idctrl_dict.clear()
+
+        super().destroy(**kwargs)
