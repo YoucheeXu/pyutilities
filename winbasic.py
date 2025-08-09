@@ -1,5 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
+"""
+v1.0.0
+  1. register_eventhandler upgrade to list
+  2. refactor
+  3. refactor init of guibasic
+  4. Dialog support to focused
+"""
 import abc
 import xml.etree.ElementTree as et
 from typing import cast, Literal, Any, Protocol, override
@@ -38,10 +45,18 @@ class Control(abc.ABC):
     def __init__(self, title: str, idself: str):
         self._title: str = title
         self._idself: str = idself
+        self._backed: bool = True
 
     @property
     def title(self):
         return self._title
+
+    @property
+    def backed(self):
+        return self._backed
+
+    def back(self, bset: bool = True):
+        self._backed = bset
 
     @abc.abstractmethod
     def configure(self, **kwargs: Any):
@@ -75,12 +90,14 @@ class Control(abc.ABC):
 
 
 class Dialog:
-    def __init__(self, title: str):
+    def __init__(self, title: str, width: int, height: int):
         self._xx: int = 0
         self._yy: int = 0
-        self._ww: int = 0
-        self._hh: int = 0
         self._title: str = title
+        self._ww: int = width
+        self._hh: int = height
+        self._backed: bool = True
+        self._idctrl_dict: OrderedDict[str, object] = OrderedDict()
         self._eventhandler_dict: dict[str, list[EventHanlder]] = {}
         self._msgs_hanlders: list[tuple[int, list[str], EventsHanlder]] = []
 
@@ -98,6 +115,18 @@ class Dialog:
     @property
     def size(self):
         return self._ww, self._hh
+
+    @property
+    def backed(self):
+        return self._backed
+
+    def back(self, bset: bool = True):
+        for idctrl, ctrl in self._idctrl_dict.items():
+            try:
+                ctrl = cast(Control, ctrl).back(bset)
+            except AttributeError as e:
+                po(f"{idctrl} doesn't support back")
+        self._backed = bset
 
     def register_eventhandler(self, idmsg: str, handler: EventHanlder):
         handlerlist = self._eventhandler_dict.get(idmsg)
@@ -155,6 +184,14 @@ class Dialog:
 
         po(f"undeal msg of {idmsg}: {kwargs}")
 
+    """
+    def move_window(self, x: int, y: int):
+        self._xx, self_yy = x, y
+
+    def resize_window(self, w: int, h: int):
+        self._ww, self._hh = w, h
+    """
+
     def destroy(self, **kwargs: Any):
         # self._eventhandler_dict.clear()
         # self._eventhandler_dict = {}
@@ -164,13 +201,20 @@ class Dialog:
 
 
 class WinBasic(abc.ABC, Dialog):
-    def __init__(self):
-        Dialog.__init__(self, "")
+    def __init__(self, xmlfile: str):
+        element_tree = et.parse(xmlfile)
+        self._wincfg: et.Element[str] = element_tree.getroot()
+        win_attr = self._wincfg.attrib
+        if "Width" in win_attr:
+            w, h = int(win_attr["Width"]), int(win_attr["Height"])
+        else:
+            w, h = 0, 0
+        Dialog.__init__(self, win_attr["Title"], w, h)
         # self._idctrl_dict: dict[str, object] = {}
-        self._idctrl_dict: OrderedDict[str, object] = OrderedDict()
+        # self._idctrl_dict: OrderedDict[str, object] = OrderedDict()
 
     @abc.abstractmethod
-    def create_window(self, xmlfile: str):
+    def create_window(self):
         pass
 
     def create_xml(self, tag: str, attr_dict: dict[str, str], root: et.Element | None = None) -> et.Element:
@@ -183,8 +227,7 @@ class WinBasic(abc.ABC, Dialog):
 
     @abc.abstractmethod
     def create_control(self, parent: object, ctrl_cfg: et.Element,
-            # level: int = 0, owner: Dialog | None = None) -> tuple[str, object]:
-            level: int = 0) -> tuple[str, object]:
+            level: int = 0, owner: Dialog | None = None) -> tuple[str, object]:
         pass
 
     @abc.abstractmethod
@@ -192,23 +235,20 @@ class WinBasic(abc.ABC, Dialog):
         pass
 
     def create_controls(self, parent: object, ctrl_cfg: et.Element,
-            # level: int = 0, owner: Dialog | None = None) -> list[str]:
-            level: int = 0) -> list[str]:
-        idctrl_list: list[str] = []
-        # idctrl, ctrl = self.create_control(parent, ctrl_cfg, level, owner)
-        idctrl, ctrl = self.create_control(parent, ctrl_cfg, level)
-        idctrl_list.append(idctrl)
+            level: int = 0, owner: Dialog | None = None) -> OrderedDict[str, object]:
+        idctrl_dict: OrderedDict[str, object] = OrderedDict()
+        idctrl, ctrl = self.create_control(parent, ctrl_cfg, level, owner)
+        idctrl_dict[idctrl] = ctrl
         tag = ctrl_cfg.tag
         if tag in ["Menu", "Notebook", "RadiobuttonGroup",
             "Statusbar", "Toolbar", "Dialog"]:
             pass
         else:
             for subctrl_cfg in list(ctrl_cfg):
-                # subidctrl_list = self.create_controls(ctrl, subctrl_cfg, level + 1, owner)
-                subidctrl_list = self.create_controls(ctrl, subctrl_cfg, level + 1)
-                idctrl_list.extend(subidctrl_list)
+                subidctrl_dict = self.create_controls(ctrl, subctrl_cfg, level + 1, owner)
+                idctrl_dict.update(subidctrl_dict)
         self.assemble_control(ctrl, ctrl_cfg.attrib, f"{'  '*level}")
-        return idctrl_list
+        return idctrl_dict
 
     def delete_control(self, idctrl: str):
         # if idctrl in self._idctrl_dict:
@@ -232,6 +272,7 @@ class WinBasic(abc.ABC, Dialog):
         # pv(self._idctrl_dict.keys())
         for idctrl in reversed(list(self._idctrl_dict.keys())):
             if idctrl in self._idctrl_dict:
+                # po(f"Going to delete {idctrl}")
                 self.delete_control(idctrl)
         self._idctrl_dict.clear()
 
