@@ -66,3 +66,13 @@ def current_platform() -> str:
         return 'win32'
     else:
         raise OSError(f"Unsupported platform: {sys.platform}")
+
+
+if __name__ == "__main__":
+    import const
+    from logit import pv
+    const.PI = 3.141596
+    pv(const.PI)
+
+    const.PI = 3
+    pv(const.PI)
