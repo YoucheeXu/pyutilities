@@ -69,8 +69,29 @@ def current_platform() -> str:
 
 
 if __name__ == "__main__":
-    import const
     from logit import pv
+
+    from global_var import set_value, get_value
+    import math
+    set_value("var1", "myName")
+    pv(get_value("var1"))
+    set_value("var2", 3.1415926)
+    pv(get_value("var2"))
+    var3 = [x * x for x in range(1, 11)]
+    set_value("var3", var3)
+    pv(get_value("var3"))
+    var4 = {math.sqrt(num): num for num in var3}
+    set_value("var4", var4)
+    pv(get_value("var4"))
+
+    import gvar
+    gvar.var1 = "hello"
+    pv(gvar.var1)
+    pv(gvar.ver)
+    pv(gvar.global_var_ver)
+
+    import const
+
     const.PI = 3.141596
     pv(const.PI)
 

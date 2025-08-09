@@ -3,8 +3,10 @@
 # from typing import Any
 try:
     from logit import pv
+    import gvar
 except ImportError:
-    from pyutilies.logit import pv
+    from pyutilities.logit import pv
+    from pyutilities import gvar
 
 
 _global_dict: dict[str, object] = {}
@@ -13,6 +15,8 @@ _global_dict: dict[str, object] = {}
 def _init():  # 初始化
     # global _global_dict
     _global_dict = {}
+    print("recommend to use gvar to replace global_var for thread safe")
+    gvar.global_var_ver = "0.1.0"
 
 
 def set_value(key: str, value: object):
