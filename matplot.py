@@ -6,6 +6,7 @@ from typing import cast, Any
 
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
+from matplotlib.container import Container
 from matplotlib.axes._axes import Axes
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -20,7 +21,7 @@ except ImportError:
     from pyutilities.tkcontrol import tkControl
 
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"
 
 
 font = {'family' : 'SimHei',
@@ -34,8 +35,9 @@ plt.rc('axes', unicode_minus=False)  # 步骤二（解决坐标轴负数的负�
 class LineData:
     ydata: ArrayLike                                # np.ndarray / list
     style_dict: dict = field(default_factory=dict)
+    typ: str = "line"
     visible: bool = True
-    line: Line2D | None = None
+    line: Line2D | Container | None = None
 
 
 class MatPlotCtrl(tkControl):
@@ -48,7 +50,7 @@ class MatPlotCtrl(tkControl):
         ylabel: str = "",
         size: tuple[float, float] = (640, 480),
     ):
-        self._dpi: float = 100
+        self._dpi: float = 80
         self._xdata: ArrayLike = []
         self._linedata_list: list[LineData] = []
 
@@ -74,11 +76,6 @@ class MatPlotCtrl(tkControl):
         # self._ax.legend(loc='upper right')
         self._ax.autoscale()
 
-    """
-    def pack(self, **pack_dict):
-        self._canvas.get_tk_widget().pack(**pack_dict)
-    """
-
     @property
     def xdata(self):
         return self._xdata
@@ -87,20 +84,36 @@ class MatPlotCtrl(tkControl):
     def xdata(self, xdata: ArrayLike):
         self._xdata = xdata
 
-    def _plot(self, xdata: ArrayLike, ydata: ArrayLike, **style_dict: Any) -> Line2D:
+    def _bar(self, xdata: ArrayLike, ydata: ArrayLike, **style_dict: Any):
+        bar = self._ax.bar(xdata, ydata, **style_dict)
+        if isinstance(bar, list):
+            return bar[0]
+        else:
+            return bar
+
+    def _plot(self, xdata: ArrayLike, ydata: ArrayLike, **style_dict: Any):
         line = self._ax.plot(xdata, ydata, **style_dict)
         if isinstance(line, list):
             return line[0]
         else:
             return line
 
+    def _draw(self, xdata: ArrayLike, ydata: ArrayLike, typ: str, **style_dict: Any):
+        match typ:
+            case "line":
+                line = self._plot(self._xdata, ydata, **style_dict)
+            case "bar":
+                line = self._bar(self._xdata, ydata, **style_dict)
+            case _:
+                raise ValueError(f"don't support type: {typ}")
+        return line
+
     def add_line(self, line_data: LineData):
         ydata = line_data.ydata
         if line_data.visible:
-            line_data.line = self._plot(self._xdata, ydata,
+            line_data.line = self._draw(self._xdata, ydata, line_data.typ,
                 **line_data.style_dict)
-            # pv(line_data.style_dict)
-        # pv(type(line_data.line))
+
         self._linedata_list.append(line_data)
 
         return len(self._linedata_list) - 1
@@ -117,18 +130,15 @@ class MatPlotCtrl(tkControl):
         pv(line)
         if is_show:
             if not line:
-                line_data.line = self._plot(
-                    self._xdata, line_data.ydata,
+                line_data.line = self._draw(
+                    self._xdata, line_data.ydata, line_data.typ,
                     **line_data.style_dict
                 )
         else:
             if line_data.line is not None:
                 line_data.line.remove()
                 del line_data.line
-                # self._linedata_list[idx].line = None
                 line_data.line = None
-        # line_data.line.set_visible(is_show)
-        # line_data.line.get_legend().set_visible(is_show)
 
     def _recalculate_axes_scale(self):
         self._ymin = float("inf")
@@ -148,8 +158,8 @@ class MatPlotCtrl(tkControl):
                 self._ymin = min(self._ymin, ymin)
                 self._ymax = max(self._ymax, ymax)
 
-        self._ymin = -0.15 if self._ymin == 0 else self._ymin
-        _ = self._ax.set_ylim(self._ymin * 1.05, self._ymax * 1.05)
+        self._ymin = -0.05 if self._ymin == 0 else self._ymin
+        _ = self._ax.set_ylim(self._ymin * 1.05, self._ymax * 1.1)
 
         self._xmin = float("inf")
         self._xmax = float("-inf")
@@ -171,9 +181,6 @@ class MatPlotCtrl(tkControl):
 
     def draw(self):
         self._recalculate_axes_scale()
-        # for line_data in self._linedata_list:
-            # if line_data.style_dict.get("label") is not None:
-                # _ = self._ax.legend(loc="upper right")
         _, labels = self._ax.get_legend_handles_labels()
         if len(labels) >= 1:
             _ = self._ax.legend(loc="upper right")
@@ -211,8 +218,15 @@ class Plot:
         _ = ax.set(**axes_dict)
         return ax
 
-    def add_line(self, ax: Axes, xdata: ArrayLike, ydata: ArrayLike, **style_dict):
-        _, = ax.plot(xdata, ydata, **style_dict)
+    def add_line(self, ax: Axes, xdata: ArrayLike, ydata: ArrayLike, typ: str = "line",
+            **style_dict):
+        match typ:
+            case "line":
+                _, = ax.plot(xdata, ydata, **style_dict)
+            case "bar":
+                _, = ax.bar(xdata, ydata, **style_dict)
+            case _:
+                raise ValueError(f"don't support type: {typ}")
 
     def draw(self):
         # plt.suptitle(self._title)
