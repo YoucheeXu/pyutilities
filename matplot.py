@@ -1,16 +1,5 @@
 # !/usr/bin/python3
 # -*- coding: UTF-8 -*-
-"""
-v2.2
-    MatPlot
-        1. add_line doesn't support update ydata any more
-        2. add_line return index of line instead of require index of line
-        3. fix bug of get line from ax.plot
-TODO: 
-    1. legend           OK
-    2. size             OK
-    3. grid
-"""
 from dataclasses import dataclass, field
 import tkinter as tk
 from typing import cast, Any
@@ -25,8 +14,13 @@ import numpy as np
 
 try:
     from logit import pv
+    from tkcontrol import tkControl
 except ImportError:
     from pyutilities.logit import pv
+    from pyutilities.tkcontrol import tkControl
+
+
+__version__ = "2.3.0"
 
 
 font = {'family' : 'SimHei',
@@ -44,16 +38,16 @@ class LineData:
     line: Line2D | None = None
 
 
-class MatPlotCtrl(tk.Misc):
+class MatPlotCtrl(tkControl):
     def __init__(
         self,
-        frm: tk.Misc,
+        parent: tk.Widget,
+        idself: str,
         title: str = "",
         xlabel: str = "",
         ylabel: str = "",
         size: tuple[float, float] = (640, 480),
     ):
-        super().__init__()
         self._dpi: float = 100
         self._xdata: ArrayLike = []
         self._linedata_list: list[LineData] = []
@@ -66,7 +60,8 @@ class MatPlotCtrl(tk.Misc):
         self._size: tuple[float, float] = cast(tuple[float, float], tuple(item / self._dpi for item in size))
         # print(f"size = {self._size}")
         fig: Figure = Figure(figsize=self._size, dpi=self._dpi)
-        self._canvas: FigureCanvasTkAgg = FigureCanvasTkAgg(fig, frm)
+        self._canvas: FigureCanvasTkAgg = FigureCanvasTkAgg(fig, parent)
+        super().__init__(parent, title, idself, self._canvas.get_tk_widget())
         self._ax: Axes = fig.add_subplot()
         fig.subplots_adjust(bottom=0.25)
         self._create(title, xlabel, ylabel)
@@ -79,8 +74,10 @@ class MatPlotCtrl(tk.Misc):
         # self._ax.legend(loc='upper right')
         self._ax.autoscale()
 
+    """
     def pack(self, **pack_dict):
         self._canvas.get_tk_widget().pack(**pack_dict)
+    """
 
     @property
     def xdata(self):
@@ -90,7 +87,7 @@ class MatPlotCtrl(tk.Misc):
     def xdata(self, xdata: ArrayLike):
         self._xdata = xdata
 
-    def _plot(self, xdata: ArrayLike, ydata: ArrayLike, **style_dict) -> Line2D:
+    def _plot(self, xdata: ArrayLike, ydata: ArrayLike, **style_dict: Any) -> Line2D:
         line = self._ax.plot(xdata, ydata, **style_dict)
         if isinstance(line, list):
             return line[0]
@@ -184,7 +181,7 @@ class MatPlotCtrl(tk.Misc):
 
 
 class Plot:
-    def __init__(self, title: str = "", num_row: int = 1, num_col: int = 1, **plot_dict):
+    def __init__(self, title: str = "", num_row: int = 1, num_col: int = 1, **plot_dict: Any):
         self._title: str = title
         fig, axs = plt.subplots(num_row, num_col, **plot_dict)
         self._fig: Figure = fig
