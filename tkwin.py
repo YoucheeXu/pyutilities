@@ -39,7 +39,7 @@ except ImportError:
     import pyutilities.cv2_utilities as cv2u
 
 
-__version__ = "4.3.1"
+__version__ = "4.3.2"
 IS_WINDOWS = platform.system() == "Windows"
 
 
@@ -52,6 +52,14 @@ class LabelCtrl(tkControl):
             _= ctrl.bind("<Button-1>",
                 lambda e: owner.process_message(idself,
                     mousepos=e.widget.winfo_pointerxy()))
+
+    def get_text(self):
+        lblctrl = cast(ttk.Label, self._tkctrl)
+        return cast(str, lblctrl["text"])
+
+    def set_text(self, val: str):
+        lblctrl = cast(ttk.Label, self._tkctrl)
+        lblctrl["text"] = val
 
 
 class EntryCtrl(tkControl):
@@ -96,8 +104,8 @@ class ImagePanelCtrl(tkControl):
     def _read_image(self, imagepath: str, w: int, h: int):
         image = cv2u.read_image(imagepath)
         if w:
-            pv(w)
-            pv(h)
+            # pv(w)
+            # pv(h)
             image = cv2u.scale_image(image, w, h)
         image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
 
@@ -117,7 +125,7 @@ class ImagePanelCtrl(tkControl):
         image2 = PIL.Image.fromarray(image1)
 
         # ...and then to ImageTk format
-        image3 =  cast(tk.Image, PIL.ImageTk.PhotoImage(image2))
+        image3 = cast(tk.Image, PIL.ImageTk.PhotoImage(image2))
 
         _ = cast(tk.Label, super().control).configure(image=image3)
         self.image = image3
@@ -1231,7 +1239,7 @@ if __name__ == "__main__":
     class ExampleApp(tkWin):
         def __init__(self, cur_path: str, xmlfile: str):
             super().__init__(cur_path, xmlfile)
-            self._i: int = 0;
+            self._i: int = 0
 
         @override
         def process_message(self, idmsg: str, **kwargs):
