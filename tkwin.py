@@ -39,7 +39,7 @@ except ImportError:
     import pyutilities.cv2_utilities as cv2u
 
 
-__version__ = "4.3.2"
+__version__ = "4.3.3"
 IS_WINDOWS = platform.system() == "Windows"
 
 
@@ -94,10 +94,10 @@ class ImagePanelCtrl(tkControl):
         """
         self.image: tk.Image | None = None
         if imagefile:
-            # img: tk.Image = self.read_image(img_file, options["width"], options["height"])
-            img: tk.Image = self._read_image(imagefile, width, height)
-            _ = ctrl.configure(text="", image=img, anchor=tk.CENTER, **options)
-            self.image = img
+            # image: tk.Image = self.read_image(img_file, options["width"], options["height"])
+            image: tk.Image = self._read_image(imagefile, width, height)
+            _ = ctrl.configure(text="", image=image, anchor=tk.CENTER, **options)
+            self.image = image
         else:
             _ = ctrl.configure(text="", anchor=tk.CENTER, **options)
 
@@ -115,11 +115,11 @@ class ImagePanelCtrl(tkControl):
         image3 =  cast(tk.Image, PIL.ImageTk.PhotoImage(image2))
         return image3
 
-    def display_image(self, img: cv2.typing.MatLike):
+    def display_image(self, image: cv2.typing.MatLike):
         # OpenCV represents images in BGR order however PIL represents
         # images in RGB order, so we need to swap the channels
-        # image1 = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        image1 = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
+        # image1 = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image1 = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
 
         # convert the images to PIL format...
         image2 = PIL.Image.fromarray(image1)
@@ -184,10 +184,10 @@ class ImageBtttonCtrl(tkControl):
 
     def _read_image0(self, imagepath: str, w: int, h: int) -> tk.Image | None:
         eimg: tk.Image | None = None
-        img = PIL.Image.open(imagepath)
+        image = PIL.Image.open(imagepath)
         if w:
-            img = img.resize((w, h))
-        photoimage = cast(tk.Image, PIL.ImageTk.PhotoImage(img))
+            image = image.resize((w, h))
+        photoimage = cast(tk.Image, PIL.ImageTk.PhotoImage(image))
         return photoimage
 
     def _read_image(self, imagepath: str, w: int, h: int):
@@ -965,13 +965,13 @@ class tkWin(WinBasic):
                 ctrl = EntryCtrl(parent, **options)
             case "ImageButton":
                 ctrl = ImageBtttonCtrl(parent, owner, idctrl,
-                    respath=self._res_path, imagefile=attr_dict["img"],
+                    respath=self._res_path, imagefile=attr_dict["image"],
                     text=text, **options)
             case "ImagePanel":
-                img = attr_dict.get("img", "")
-                if img:
-                    img = os.path.join(self._res_path, img)
-                ctrl = ImagePanelCtrl(parent, idctrl, img, **options)
+                image = attr_dict.get("image", "")
+                if image:
+                    image = os.path.join(self._res_path, image)
+                ctrl = ImagePanelCtrl(parent, idctrl, image, **options)
             case "MatPlot":
                 assert text is not None
                 if "size" in attr_dict:
