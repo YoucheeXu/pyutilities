@@ -1,9 +1,5 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-"""
-v0.5.0
-  1. init
-"""
 import abc
 import xml.etree.ElementTree as et
 import tkinter as tk
@@ -45,7 +41,7 @@ class WinBasic(abc.ABC):
         self._y: int = 0
         self._w: int = 0
         self._h: int = 0
-        self._win: tk.Tk = tk.Tk()
+        # self._win: tk.Tk = tk.Tk()
 
     @abc.abstractmethod
     def get_winsize(self) -> tuple[int, int, int, int]:
