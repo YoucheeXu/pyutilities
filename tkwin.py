@@ -979,7 +979,7 @@ class tkWin(WinBasic):
                     ctrl = MatPlotCtrl(parent, idctrl, text, attr_dict["xLabel"],
                         attr_dict["yLabel"], size)
                 else:
-                    ctrl = MatPlotCtrl(parent, text, attr_dict["xLabel"],
+                    ctrl = MatPlotCtrl(parent, idctrl, text, attr_dict["xLabel"],
                         attr_dict["yLabel"])
             case "Menu":
                 self.debug_print()
