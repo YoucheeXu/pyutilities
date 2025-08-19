@@ -9,6 +9,7 @@ import ctypes
 from functools import partial
 # from collections import OrderedDict
 from typing import Literal, Any, override, cast
+from typing import Protocol, TypeVar
 # from collections.abc import Callable
 
 import tkinter as tk
@@ -67,7 +68,7 @@ class EntryCtrl(tkControl):
         ctrl = ttk.Entry(parent)
         super().__init__(parent, "", "", ctrl)
         self._var: tk.StringVar = tk.StringVar()
-        _= self.configure(textvariable=self._var, **options)
+        _= ctrl.configure(textvariable=self._var, **options)
 
     def get_val(self) -> str:
         return self._var.get()
@@ -787,6 +788,11 @@ class DialogCtrl(Dialog):
             self._owner.back(False)
         super().destroy()
 
+_T_contra = TypeVar("_T_contra", contravariant=True)
+class SupportsWrite(Protocol[_T_contra]):
+    """自定义协议：表示支持 write(str) 方法的对象"""
+    def write(self, s: str) -> Any: ...
+
 
 class tkWin(WinBasic):
     def __init__(self, cur_path: str, xmlfile: str):
@@ -1192,6 +1198,9 @@ class tkWin(WinBasic):
 
         # self._x = self._win.winfo_rootx()
         # self._y = self._win.winfo_rooty()
+
+        self._win.focus_force()
+        # self._win.focus_set()
 
         self._win.mainloop()
 
