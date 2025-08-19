@@ -1,26 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 import sys
-from threading import RLock
 
 try:
-    from logit import pv
+    from singleton import singleton
 except ImportError:
-    from pyutilities.logit import pv
-
-
-single_lock = RLock()
-
-def singleton(cls):
-    instance = {}
-
-    def _singleton_wrapper(*args, **kwargs):
-        with single_lock:
-            if cls not in instance:
-                instance[cls] = cls(*args, **kwargs)
-        return instance[cls]
-
-    return _singleton_wrapper
+    from pyutilies.singleton import singleton
 
 
 @singleton

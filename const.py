@@ -5,7 +5,6 @@ from types import ModuleType
 from typing import Final, Callable
 
 try:
-    from logit import pv
     from singleton import singleton
 except ImportError:
     from pyutilies.singleton import singleton
