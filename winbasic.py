@@ -9,7 +9,7 @@ v1.0.0
 """
 import abc
 import xml.etree.ElementTree as et
-from typing import cast, Literal, Any, Protocol, override
+from typing import cast, Literal, Protocol, override
 # from typing import TypeAlias
 # from collections.abc import Callable, Mapping
 from collections import OrderedDict
@@ -23,26 +23,27 @@ except ImportError:
 # EventHanlder: TypeAlias = Callable[[dict[str, Any]], Any]
 # EventHanlder: TypeAlias = Callable[[Mapping[str, Any]], Any]
 class EventHanlder(Protocol):
-    def __call__(self, **kwargs: Any) -> Any: ...
+    def __call__(self, **kwargs: object) -> object: ...
 
 
 # EventsHanlder: TypeAlias = Callable[[str, dict[str, Any]], Any]
 # EventsHanlder: TypeAlias = Callable[[str, Mapping[str, Any]], Any]
 class EventsHanlder(Protocol):
-    def __call__(self, idmsg: str, **kwargs: Any) -> Any: ...
+    def __call__(self, idmsg: str, **kwargs: object) -> object: ...
 
 
-class Widget(abc.ABC):
+class Widget:
     def __init__(self):
         pass
 
-    @abc.abstractmethod
-    def process_message(self, idmsg: str, **kwargs: Any) -> Any:
-        pass
+    # @abc.abstractmethod
+    # def process_message(self, idmsg: str, **kwargs: object) -> object:
+        # pass
 
 
-class Control(abc.ABC):
+class Control(Widget, metaclass=abc.ABCMeta):
     def __init__(self, title: str, idself: str):
+        super().__init__()
         self._title: str = title
         self._idself: str = idself
         self._backed: bool = True
@@ -59,7 +60,7 @@ class Control(abc.ABC):
         self._backed = bset
 
     @abc.abstractmethod
-    def configure(self, **kwargs: Any):
+    def configure(self, **kwargs: object):
         pass
 
     @abc.abstractmethod
@@ -67,7 +68,7 @@ class Control(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __setitem__(self, item: str, value: Any):
+    def __setitem__(self, item: str, value: object):
         pass
 
     @abc.abstractmethod
@@ -89,15 +90,16 @@ class Control(abc.ABC):
         pass
 
 
-class Dialog:
+class Dialog(Widget, metaclass=abc.ABCMeta):
     def __init__(self, title: str, width: int, height: int):
+        super().__init__()
         self._xx: int = 0
         self._yy: int = 0
         self._title: str = title
         self._ww: int = width
         self._hh: int = height
         self._backed: bool = True
-        self._idctrl_dict: OrderedDict[str, object] = OrderedDict()
+        self._idctrl_dict: OrderedDict[str, Widget] = OrderedDict()
         self._eventhandler_dict: dict[str, list[EventHanlder]] = {}
         self._msgs_hanlders: list[tuple[int, list[str], EventsHanlder]] = []
 
@@ -124,7 +126,7 @@ class Dialog:
         for idctrl, ctrl in self._idctrl_dict.items():
             try:
                 ctrl = cast(Control, ctrl).back(bset)
-            except AttributeError as e:
+            except AttributeError as _:
                 po(f"{idctrl} doesn't support back")
         self._backed = bset
 
@@ -158,7 +160,7 @@ class Dialog:
         else:
             self._msgs_hanlders.append((typ, [], hanlder))
 
-    def process_message(self, idmsg: str, **kwargs: Any) -> Any:
+    def process_message(self, idmsg: str, **kwargs: object):
         for typ, msglst, hander in self._msgs_hanlders:
             if typ == 0:
                 ret = hander(idmsg, **kwargs)
@@ -184,15 +186,8 @@ class Dialog:
 
         po(f"undeal msg of {idmsg}: {kwargs}")
 
-    """
-    def move_window(self, x: int, y: int):
-        self._xx, self_yy = x, y
-
-    def resize_window(self, w: int, h: int):
-        self._ww, self._hh = w, h
-    """
-
-    def destroy(self, **kwargs: Any):
+    @abc.abstractmethod
+    def destroy(self, **kwargs: object):
         # self._eventhandler_dict.clear()
         # self._eventhandler_dict = {}
         # self._msgs_hanlders.clear()
@@ -200,7 +195,7 @@ class Dialog:
         pass
 
 
-class WinBasic(abc.ABC, Dialog):
+class WinBasic(Dialog, metaclass=abc.ABCMeta):
     def __init__(self, xmlfile: str):
         element_tree = et.parse(xmlfile)
         self._wincfg: et.Element[str] = element_tree.getroot()
@@ -226,17 +221,17 @@ class WinBasic(abc.ABC, Dialog):
         return item_xml
 
     @abc.abstractmethod
-    def create_control(self, parent: object, ctrl_cfg: et.Element,
-            level: int = 0, owner: Dialog | None = None) -> tuple[str, object]:
+    def create_control(self, parent: Widget, ctrl_cfg: et.Element,
+            level: int = 0, owner: Dialog | None = None) -> tuple[str, Widget]:
         pass
 
     @abc.abstractmethod
-    def assemble_control(self, ctrl: object, attr_dict: dict[str, str], prefix: str = ""):
+    def assemble_control(self, ctrl: Widget, attr_dict: dict[str, str], prefix: str = ""):
         pass
 
-    def create_controls(self, parent: object, ctrl_cfg: et.Element,
-            level: int = 0, owner: Dialog | None = None) -> OrderedDict[str, object]:
-        idctrl_dict: OrderedDict[str, object] = OrderedDict()
+    def create_controls(self, parent: Widget, ctrl_cfg: et.Element,
+            level: int = 0, owner: Dialog | None = None) -> OrderedDict[str, Widget]:
+        idctrl_dict: OrderedDict[str, Widget] = OrderedDict()
         idctrl, ctrl = self.create_control(parent, ctrl_cfg, level, owner)
         idctrl_dict[idctrl] = ctrl
         tag = ctrl_cfg.tag
@@ -268,7 +263,7 @@ class WinBasic(abc.ABC, Dialog):
         pass
 
     @override
-    def destroy(self, **kwargs: Any):
+    def destroy(self, **kwargs: object):
         # pv(self._idctrl_dict.keys())
         for idctrl in reversed(list(self._idctrl_dict.keys())):
             if idctrl in self._idctrl_dict:

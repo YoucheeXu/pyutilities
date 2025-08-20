@@ -34,7 +34,7 @@ plt.rc('axes', unicode_minus=False)  # 步骤二（解决坐标轴负数的负�
 @dataclass
 class LineData:
     ydata: ArrayLike                                # np.ndarray / list
-    style_dict: dict = field(default_factory=dict)
+    style_dict: dict[str, object] = field(default_factory=dict)
     typ: str = "line"
     visible: bool = True
     line: Line2D | Container | None = None
@@ -43,7 +43,7 @@ class LineData:
 class MatPlotCtrl(tkControl):
     def __init__(
         self,
-        parent: tk.Widget,
+        parent: tk.Misc,
         idself: str,
         title: str = "",
         xlabel: str = "",
