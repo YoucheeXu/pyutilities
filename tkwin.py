@@ -408,8 +408,9 @@ class ScrollableFrameCtrl(tkControl):
         # self._vscrollbar.pack(side="right", fill="y")
         self._vscrollbar.pack(side="right", fill="y", expand=False)
         # 绑定滚动条事件
-        # _ = self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
-        app.register_eventhandler("MouseWheel", self._on_mousewheel)
+        # app.register_eventhandler("MouseWheel", self._on_mousewheel)
+        _ = self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        _ = self._interior.bind_all("<MouseWheel>", self._on_mousewheel)
 
     def _configure_interior(self, event: tk.Event[ttk.Frame]):
         # Update the scrollbars to match the size of the inner frame
@@ -424,13 +425,13 @@ class ScrollableFrameCtrl(tkControl):
             # Update the inner frame's width to fill the canvas
             _ = self._canvas.itemconfigure(self._interior_id, width=self._canvas.winfo_width())
 
-    # def _on_mousewheel(self, event: tk.Event[tk.Canvas]):
-    def _on_mousewheel(self, **kwargs: object):
-        if not self._backed:
-            # delta = cast(tk.Event[tk.Widget], kwargs["event"]).delta
-            delta = cast(int, kwargs["delta"])
-            scroll_direction = -1 if delta > 0 else 1
-            self._canvas.yview_scroll(scroll_direction, "units")
+    def _on_mousewheel(self, event: tk.Event[tk.Misc]):
+    # def _on_mousewheel(self, **kwargs: object):
+        # if not self._backed:
+            # delta = cast(int, kwargs["delta"])
+        delta = event.delta
+        scroll_direction = -1 if delta > 0 else 1
+        self._canvas.yview_scroll(scroll_direction, "units")
 
     # @override
     # @property
@@ -787,7 +788,7 @@ class tkWin(WinBasic):
         # 注册（绑定）窗口变动事件
         _ = self._win.bind('<Configure>', self._on_winresize)
         _ = self._win.bind_all("<KeyPress>", self._on_keypress)
-        _ = self._win.bind_all("<MouseWheel>", self._on_mousewheel)
+        # _ = self._win.bind_all("<MouseWheel>", self._on_mousewheel)
         # self._win.bind("<Motion>", self._motion)
         # self._win.bind("<Button-1>", self._mouseclicked)
         # self._win.columnconfigure(0, weight=1)
@@ -1227,10 +1228,6 @@ class tkWin(WinBasic):
         shift = state & 0x0001
         # alt = state & 0x0008 | state & 0x0080
         self.process_message("KeyPress", key=event.keysym, ctrl=ctrl, shift=shift)
-
-    def _on_mousewheel(self, event: tk.Event[tk.Misc]):
-        self.process_message("MouseWheel",
-            mousepos=(event.x_root, event.y_root), delta=event.delta)
 
     def exit(self, **kwargs: object):
         res = tkMessageBox.askquestion(
