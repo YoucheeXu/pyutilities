@@ -21,8 +21,8 @@ import xml.etree.ElementTree as et
 from ast import literal_eval
 
 import cv2
-from PIL import Image, ImageTk    # for imgButton
-# import PIL
+# from PIL import Image
+from PIL import ImageTk
 
 from idlelib.statusbar import MultiStatusBar
 from idlelib.tooltip import Hovertip
@@ -97,27 +97,14 @@ class ImagePanelCtrl(tkControl):
             # pv(w)
             # pv(h)
             image = cv2u.scale_image(image, w, h)
-        image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
-
-        # convert the images to PIL format...
-        image2 = Image.fromarray(image)
-        # ...and then to ImageTk format
-        image3 = ImageTk.PhotoImage(image2)
-        return image3
+        image2 = cv2u.image2photo(image)
+        return image2
 
     def display_image(self, image: cv2.typing.MatLike):
-        # OpenCV represents images in BGR order however PIL represents
-        # images in RGB order, so we need to swap the channels
-        image1 = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
+        image2 = cv2u.image2photo(image)
 
-        # convert the images to PIL format...
-        image2 = Image.fromarray(image1)
-
-        # ...and then to ImageTk format
-        image3 = ImageTk.PhotoImage(image2)
-
-        _ = cast(tk.Label, super().control).configure(image=image3)
-        self._image = image3
+        _ = cast(tk.Label, super().control).configure(image=image2)
+        self._image = image2
 
 
 class ButtonCtrl(tkControl):
@@ -170,13 +157,8 @@ class ImageBtttonCtrl(tkControl):
         if w:
             # image = cv2.resize(image, (w, h), interpolation=cv2.INTER_CUBIC)
             image = cv2u.scale_image(image, w, h, cv2.INTER_CUBIC)
-        image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
-
-        # convert the images to PIL format...
-        image2 = Image.fromarray(image)
-        # ...and then to ImageTk format
-        image3 = ImageTk.PhotoImage(image2)
-        return image3
+        image2 = cv2u.image2photo(image)
+        return image2
 
     # TODO: wait to test
     def change_image(self, imagefile: str, w: int = 0, h: int = 0):

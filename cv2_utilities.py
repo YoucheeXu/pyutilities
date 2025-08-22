@@ -6,8 +6,8 @@ from typing import cast
 
 import numpy as np
 import cv2
-import PIL
-from PIL import Image
+# import PIL
+from PIL import Image, ImageTk
 
 try:
     from logit import pv
@@ -66,6 +66,19 @@ def rotate_image(image: cv2.typing.MatLike, degree: float):
         padding_w : padding_w + w, padding_h : padding_h + h, :
     ]
     return image
+
+
+def image2photo(image: cv2.typing.MatLike):
+    """ OpenCV represents images in BGR order however PIL represents
+            images in RGB order, so we need to swap the channels
+    """
+    image1 = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
+
+    # convert the images to PIL format...
+    image2 = Image.fromarray(image1)
+    # ...and then to ImageTk format
+    image3 = ImageTk.PhotoImage(image2)
+    return image3
 
 
 def read_exif(fname: str): #定义获取图片exif的方法
