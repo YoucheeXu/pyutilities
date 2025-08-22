@@ -165,9 +165,11 @@ class ImageBtttonCtrl(tkControl):
         self._image = eimg
 
     def _read_image(self, imagepath: str, w: int, h: int):
-        image = cv2.imread(imagepath, cv2.IMREAD_UNCHANGED)
+        # image = cv2.imread(imagepath, cv2.IMREAD_UNCHANGED)
+        image = cv2u.read_image(imagepath)
         if w:
-            image = cv2.resize(image, (w, h), interpolation=cv2.INTER_CUBIC)
+            # image = cv2.resize(image, (w, h), interpolation=cv2.INTER_CUBIC)
+            image = cv2u.scale_image(image, w, h, cv2.INTER_CUBIC)
         image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
 
         # convert the images to PIL format...
@@ -384,71 +386,181 @@ class LabelFrameCtrl(tkControl):
 
 
 class ScrollableFrameCtrl(tkControl):
-    """ VerticalScrollableFrameCtrl
+    """ 智能滚动容器
     """
     def __init__(self, parent: tk.Misc, app: WinBasic, idself: str,
             width: int = 0, height: int = 0, **options: Any):
-        self._outter: tk.Frame = tk.Frame(parent, **options)
-        self._canvas: tk.Canvas = tk.Canvas(self._outter, width=width, height=height)
-        # Create a frame inside the canvas which will be scrolled with it
-        self._interior: ttk.Frame = ttk.Frame(self._canvas)
-        super().__init__(parent, "", idself, self._interior)
+        self._outter_frame: tk.Frame = tk.Frame(parent, **options)
 
-        self._vscrollbar: ttk.Scrollbar = ttk.Scrollbar(self._outter, orient="vertical",
+        # 配置网格布局权重，确保框架能扩展
+        _ = self._outter_frame.grid_rowconfigure(0, weight=1)
+        _ = self._outter_frame.grid_columnconfigure(0, weight=1)
+
+        self._os_type: str = platform.system()
+        self._update_after_id: str | None = None
+
+        # 创建画布
+        self._canvas: tk.Canvas = tk.Canvas(self._outter_frame, width=width, height=height,
+            highlightthickness=0, highlightbackground="#ccc", takefocus=True)
+        self._canvas.grid(row=0, column=0, sticky="nsew")
+
+        # 垂直滚动条
+        self._vscrollbar: ttk.Scrollbar = ttk.Scrollbar(self._outter_frame, orient="vertical",
             command=self._canvas.yview)
-
-        _ = self._interior.bind('<Configure>', self._configure_interior)
-        _ = self._canvas.bind('<Configure>', self._configure_canvas)
-
-        self._interior_id: int = self._canvas.create_window((0, 0),
-            window=self._interior, anchor="nw")
+        self._vscrollbar.grid(row=0, column=1, sticky="ns")
+        self._vscrollbar.grid_remove()  # 默认隐藏
         _ = self._canvas.configure(yscrollcommand=self._vscrollbar.set)
 
-        self._canvas.pack(side="left", fill="both", expand=True)
-        # self._vscrollbar.pack(side="right", fill="y")
-        self._vscrollbar.pack(side="right", fill="y", expand=False)
-        # 绑定滚动条事件
-        # app.register_eventhandler("MouseWheel", self._on_mousewheel)
-        _ = self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
-        _ = self._interior.bind_all("<MouseWheel>", self._on_mousewheel)
+        # 水平滚动条
+        self._hscrollbar: ttk.Scrollbar = ttk.Scrollbar(self._outter_frame, orient="horizontal",
+            command=self._canvas.xview)
+        _ = self._hscrollbar.grid(row=1, column=0, sticky="ew")
+        self._hscrollbar.grid_remove()  # 默认隐藏
+        _ = self._canvas.configure(xscrollcommand=self._hscrollbar.set)
 
-    def _configure_interior(self, event: tk.Event[ttk.Frame]):
+        # Create a frame inside the canvas which will be scrolled with it
+        self._inner_frame: tk.Frame = tk.Frame(self._canvas)
+        super().__init__(parent, "", idself, self._inner_frame)
+
+        # self._outter_frame.bindtags((self._outter_frame, self._canvas, "Frame", "all"))
+        # 调整bindtags，确保事件先传给自身，再传给画布
+        # self._inner_frame.bindtags((self._inner_frame, self._canvas, "Frame", "all"))
+
+        self._interior_id: int = self._canvas.create_window((0, 0),
+            window=self._inner_frame, anchor="nw")
+
+        # 绑定事件处理
+        _ = self._inner_frame.bind('<Configure>', self._on_configure_inner)
+        _ = self._canvas.bind('<Configure>', self._on_configure_canvas)
+        _ = self._inner_frame.bind("<Map>", self._on_map_inner)
+
+        # 鼠标滚轮支持
+        self._bind_scroll_events(self._canvas)
+        self._bind_scroll_events(self._inner_frame)
+        # self._bind_scroll_events(self._outter_frame)
+
+        # 初始更新
+        self._outter_frame.update_idletasks()
+        self._on_configure_inner(None)
+
+    def _bind_scroll_events(self, widget: tk.Widget):
+        """为单个控件绑定所有必要的滚动事件"""
+        if self._os_type == "Linux":
+            vevents = ["<Button-4>",            # 上滚
+                "<Button-5>"]                   # 下滚
+            hevents = ["<Shift-Button-4>",      # 左滚
+                "<Shift-Button-5>"]             # 右滚
+        else:
+            vevents = ["<MouseWheel>"]          # 垂直滚动
+            hevents = ["<Shift-MouseWheel>"]    # 水平滚动
+            if self._os_type == "Darwin":
+                hevents.append("<Command-MouseWheel>")
+
+        # 为控件绑定滚动事件处理函数
+        for event in vevents:
+            _ = widget.bind(event, self._on_vmousewheel)
+        for event in hevents:
+            _ = widget.bind(event, self._on_hmousewheel)
+
+    def update_layout(self) -> None:
+        """公共方法：更新布局和滚动区域"""
+        self._on_configure_inner(None)
+
+    def _on_map_inner(self, event: tk.Event[tk.Frame]) -> None:
+        """当内部控件被映射时强制更新布局"""
+        self._outter_frame.update_idletasks()
+        self._on_configure_inner(event)
+
+    def _on_configure_inner(self, event: tk.Event[tk.Frame] | None):
+        """内容变化时更新滚动区域"""
+
+        self._outter_frame.update_idletasks()
+
         # Update the scrollbars to match the size of the inner frame
-        size = (self._interior.winfo_reqwidth(), self._interior.winfo_reqheight())
-        _ = self._canvas.config(scrollregion=(0, 0, size[0], size[1]))
-        if self._interior.winfo_reqwidth() != self._canvas.winfo_width():
-            # Update the canvas's width to fit the inner frame
-            _ = self._canvas.config(width=self._interior.winfo_reqwidth())
+        width = self._inner_frame.winfo_reqwidth()
+        height = self._inner_frame.winfo_reqheight()
+        _ = self._canvas.config(scrollregion=(0, 0, width, height))
 
-    def _configure_canvas(self, event: tk.Event[tk.Canvas]):
-        if self._interior.winfo_reqwidth() != self._canvas.winfo_width():
+        # if self._inner_frame.winfo_reqwidth() != self._canvas.winfo_width():
+            # Update the canvas's width to fit the inner frame
+            # _ = self._canvas.config(width=self._inner_frame.winfo_reqwidth())
+
+        # 垂直滚动条显示逻辑
+        canvas_height = self._canvas.winfo_height()
+        if height > canvas_height + 5:
+            _ = self._vscrollbar.grid()
+        else:
+            self._vscrollbar.grid_remove()
+
+        # 水平滚动条显示逻辑
+        canvas_width = self._canvas.winfo_width()
+        if width > canvas_width + 5:
+            _ = self._hscrollbar.grid()
+        else:
+            self._hscrollbar.grid_remove()
+
+        # 为所有子控件绑定滚动事件
+        for widget in self._inner_frame.winfo_children():
+            if not hasattr(widget, '_scroll_events_bound'):
+                self._bind_scroll_events(widget)
+                widget._scroll_events_bound = True  # 标记为已绑定
+
+    def _on_configure_canvas(self, event: tk.Event[tk.Canvas]):
+        """画布大小变化时调整"""
+        if self._inner_frame.winfo_reqwidth() != self._canvas.winfo_width():
             # Update the inner frame's width to fill the canvas
             _ = self._canvas.itemconfigure(self._interior_id, width=self._canvas.winfo_width())
+            # _ = self._canvas.itemconfig(self._interior_id, width=event.width)
+        if self._update_after_id is not None:
+            self._outter_frame.after_cancel(self._update_after_id)
 
-    def _on_mousewheel(self, event: tk.Event[tk.Misc]):
-    # def _on_mousewheel(self, **kwargs: object):
-        # if not self._backed:
-            # delta = cast(int, kwargs["delta"])
-        delta = event.delta
-        scroll_direction = -1 if delta > 0 else 1
-        self._canvas.yview_scroll(scroll_direction, "units")
+        self._update_after_id = self._outter_frame.after(30, self._on_configure_inner, None)
 
-    # @override
-    # @property
-    # def control(self):
-        # return self._interior
+    def _on_vmousewheel(self, event: tk.Event[tk.Misc]):
+        """垂直滚动处理"""
+        if not self._vscrollbar.winfo_viewable():
+            return None
+        # po("_on_vmousewheel")
+        # if not self._vscrollbar.winfo_ismapped():
+            # return "break"
+        # delta = event.delta
+        # pv(delta)
+        # scroll_units = -1 if delta > 0 else 1
+        delta = event.delta if hasattr(event, 'delta') else -1 if event.num == 4 else 1
+        scroll_units = -int(delta / 120)
+        self._canvas.focus_set()
+        self._canvas.yview_scroll(scroll_units, "units")
+        # 阻止事件传播到其他组件
+        return "break"
+
+    def _on_hmousewheel(self, event: tk.Event[tk.Misc]):
+        """水平滚动处理"""
+        if not self._hscrollbar.winfo_viewable():
+            return None
+        # po("_on_hmousewheel")
+        # self.update_layout()
+
+        # if not self._hscrollbar.winfo_ismapped():
+            # return "break"
+
+        _ = event.widget.focus_set()
+
+        delta = event.delta if hasattr(event, 'delta') else -1 if event.num == 4 else 1
+        scroll_units = -int(delta / 120)
+        _ = self._canvas.xview_scroll(scroll_units, "units")
+        # 阻止事件传播到其他组件
+        return "break"
 
     @property
     def outter(self):
-        return self._outter
+        return self._outter_frame
 
     @override
     def destroy(self):
         po(f"ScrollableFrame {self._idself} destroy")
-        self._interior.destroy()
+        self._inner_frame.destroy()
         self._vscrollbar.destroy()
-        # self._canvas.unbind_all("<MouseWheel>")
-        # self._canvas.unbind("<MouseWheel>")
+        self._hscrollbar.destroy()
         self._canvas.destroy()
         super().destroy()
 
@@ -605,7 +717,7 @@ class DialogCtrl(Dialog):
         # pv(self.pos)
 
         self._top.control.geometry(f'{self._ww}x{self._hh}+{self._xx}+{self._yy}')
-     
+
         # self.withdraw()
         iddlg = self._idself
 
@@ -730,7 +842,7 @@ class DialogCtrl(Dialog):
             self._top.control.grab_release()
             super().back()
             # for idctrl in self._idctrl_list:
-            for idctrl, _ in self._idctrl_dict.items(): 
+            for idctrl, _ in self._idctrl_dict.items():
                 self._app.delete_control(idctrl)
             # po("subctrl have been deleted!")
             # self._idctrl_list.clear()
@@ -828,7 +940,7 @@ class tkWin(WinBasic):
     def path(self):
         return self._cur_path
 
-    def debug_print(self, 
+    def debug_print(self,
             *values: object,
             sep: str | None = " ",
             end: str | None = "\n",
@@ -1021,7 +1133,7 @@ class tkWin(WinBasic):
                 ctrl = tk.Scrollbar(master.control)
                 ctrl.configure(**options)
             case "Listbox":
-                ctrl = ListboxCtrl(master, idctrl, **options)  
+                ctrl = ListboxCtrl(master, idctrl, **options)
             case "PicsListview":
                 ctrl = PicsListviewCtrl(master, self, owner, idctrl,
                     int(attr_dict["num_column"]), int(attr_dict["pic_size"]),
@@ -1243,6 +1355,18 @@ if __name__ == "__main__":
         def __init__(self, cur_path: str, xmlfile: str):
             super().__init__(cur_path, xmlfile)
             self._i: int = 0
+            self._idx_left_vertical: int = 0
+            self._idx_left_horizontal: int = 0
+            self._idx_right_vertical: int = 0
+            self._idx_right_horizontal: int = 0
+            self._hourdetail_dlg: DialogCtrl = cast(DialogCtrl,
+                self.get_control("dlgHourDetail"))
+
+        def _create_label(self, parent: tkControl, lid: str, rowid: int, txt: str):
+            lbl_xml = self.create_xml("Label", {"text": txt, "id": lid})
+            _, lbl_ctrl = self.create_control(parent, lbl_xml)
+            self.assemble_control(lbl_ctrl, {"layout":"grid",
+                "grid":f"{{'row':{rowid},'column':0,'sticky':'w'}}"})
 
         @override
         def process_message(self, idmsg: str, **kwargs: object):
@@ -1270,11 +1394,12 @@ if __name__ == "__main__":
                     else:
                         check_btn.enable()
                 case "varChkUne":
-                    check_btn = cast(CheckButtonCtrl, self.get_control("屈于现实"))
-                    if int(kwargs["val"]) == 1:
-                        check_btn.disable()
-                    else:
-                        check_btn.enable()
+                    # check_btn = cast(CheckButtonCtrl, self.get_control("屈于现实"))
+                    # if int(kwargs["val"]) == 1:
+                        # check_btn.disable()
+                    # else:
+                        # check_btn.enable()
+                    pass
                 case "点击之后_按钮失效":
                     btn = cast(ButtonCtrl, self.get_control("点击之后_按钮失效"))
                     name = self.get_control("name")
@@ -1295,10 +1420,53 @@ if __name__ == "__main__":
                     ctrl = cast(ListboxCtrl, self.get_control("lstHaa"))
                     self._i += 1
                     ctrl.insert("end", f"第{self._i:02}项")
+                case "btnLeftVAdd":
+                    ctrl = cast(ScrollableFrameCtrl, self.get_control("frmLeftContentArea"))
+                    self._idx_left_vertical += 1
+                    num_row = self._idx_left_vertical
+                    id_lbl = f"lblLeftV{num_row}"
+                    self._create_label(ctrl, id_lbl, num_row, f"垂直内容{num_row}")
+                case "btnLeftVSub":
+                    id_lbl = f"lblLeftV{self._idx_left_vertical}"
+                    self.delete_control(id_lbl)
+                    self._idx_left_vertical -= 1
+                case "btnLeftHAdd":
+                    ctrl = cast(ScrollableFrameCtrl, self.get_control("frmLeftContentArea"))
+                    self._idx_left_horizontal += 1
+                    num_row = self._idx_left_horizontal
+                    id_lbl = f"lblLeftH{num_row}"
+                    self._create_label(ctrl, id_lbl, num_row, f"{'水平内容'*num_row}")
+                case "btnLeftHSub":
+                    id_lbl = f"lblLeftH{self._idx_left_horizontal}"
+                    self.delete_control(id_lbl)
+                    self._idx_left_horizontal -= 1
+                case "btnRightVAdd":
+                    ctrl = cast(ScrollableFrameCtrl, self.get_control("frmRightContentArea"))
+                    self._idx_right_vertical += 1
+                    num_row = self._idx_right_vertical
+                    id_lbl = f"lblRightV{num_row}"
+                    self._create_label(ctrl, id_lbl, num_row, f"垂直内容{num_row}")
+                case "btnRightVSub":
+                    id_lbl = f"lblRightV{self._idx_right_vertical}"
+                    self.delete_control(id_lbl)
+                    self._idx_right_vertical -= 1
+                case "btnRightHAdd":
+                    ctrl = cast(ScrollableFrameCtrl, self.get_control("frmRightContentArea"))
+                    self._idx_right_horizontal += 1
+                    num_row = self._idx_right_horizontal
+                    id_lbl = f"lblRightH{num_row}"
+                    self._create_label(ctrl, id_lbl, num_row, f"{'水平内容'*num_row}")
+                case "btnRightHSub":
+                    id_lbl = f"lblRightH{self._idx_right_horizontal}"
+                    self.delete_control(id_lbl)
+                    self._idx_right_horizontal -= 1
+                case "About":
+                    # x, y = cast(tuple[int, int], kwargs["mousepos"])
+                    x, y = self._xx, self._yy
+                    self._hourdetail_dlg.do_show(self, x+20, y+20, **kwargs)
                 case _:
                     return super().process_message(idmsg, **kwargs)
             return True
-
 
     filepath = os.path.dirname(os.path.abspath(__file__))
     if getattr(sys, "frozen", False):

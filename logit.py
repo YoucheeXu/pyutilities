@@ -8,17 +8,17 @@ from functools import wraps
 # from functools import partial
 from typing import override
 from typing import Callable, TypeVar, ParamSpec
-from typing import Optional, Dict
+# from typing import Optional, Dict
 
 
 # 定义一个泛型类型变量，表示任意类型
 T = TypeVar('T')
 
 
-def po(*values: T, endstr: str = "\n") -> None:
+def po(*values: object, endstr: str = "\n") -> None:
     """
     打印变量值并附带调用位置信息（行号和文件名）
-    
+
     Args:
         *values: 要打印的一个或多个值
         endstr: 输出结尾字符，默认为换行符
@@ -27,9 +27,9 @@ def po(*values: T, endstr: str = "\n") -> None:
     frame = inspect.currentframe()
     # 获取当前帧的上一帧（即调用者的帧）
     caller_frame = frame.f_back if frame else None
-    
-    filename: Optional[str] = None
-    linenum: Optional[int] = None
+
+    filename: str | None = None
+    linenum: int | None = None
 
     if caller_frame:
         filename = caller_frame.f_code.co_filename
@@ -42,8 +42,8 @@ def po(*values: T, endstr: str = "\n") -> None:
         del frame
 
     # 处理无法获取位置信息的情况
-    file_info = (f"{linenum}@{filename}" 
-                 if (linenum is not None and filename is not None) 
+    file_info = (f"{linenum}@{filename}"
+                 if (linenum is not None and filename is not None)
                  else "unknown location")
 
     # 处理值的字符串转换
@@ -61,11 +61,11 @@ def po(*values: T, endstr: str = "\n") -> None:
     print(outputstr, end=endstr)
 
 
-def pv(p: T, endstr: str = "\n") -> None:
+def pv(p: object, endstr: str = "\n") -> None:
     """
     打印变量及其名称（支持多层索引表达式）和调用位置信息，
     确保正确显示所有层级索引变量的值
-    
+
     Args:
         p: 要打印的变量
         endstr: 输出结尾字符，默认为换行符
@@ -89,19 +89,19 @@ def pv(p: T, endstr: str = "\n") -> None:
         # 处理索引表达式（支持多层索引）
         # 先尝试匹配双层索引（如a[i][j]）
         double_index_match = re.search(
-            r"^(.+?)\[([^\]]+)\]\[([^\]]+)\]$", 
+            r"^(.+?)\[([^\]]+)\]\[([^\]]+)\]$",
             var_name
         )
-        
+
         # 再尝试匹配逗号分隔索引（如a[i,j]）
         comma_index_match = re.search(
-            r"^(.+?)\[([^\]]+),\s*([^\]]+)\]$", 
+            r"^(.+?)\[([^\]]+),\s*([^\]]+)\]$",
             var_name
         )
-        
+
         # 最后尝试匹配单层索引（如a[i]）
         single_index_match = re.search(
-            r"^(.+?)\[([^\]]+)\]$", 
+            r"^(.+?)\[([^\]]+)\]$",
             var_name
         )
 
@@ -111,14 +111,14 @@ def pv(p: T, endstr: str = "\n") -> None:
             resolved_idx1 = _resolve_index(idx1, caller_frame.f_locals)
             resolved_idx2 = _resolve_index(idx2, caller_frame.f_locals)
             var_name = f"{base}[{resolved_idx1}][{resolved_idx2}]"
-        
+
         # 处理逗号分隔索引
         elif comma_index_match:
             base, idx1, idx2 = comma_index_match.groups()
             resolved_idx1 = _resolve_index(idx1, caller_frame.f_locals)
             resolved_idx2 = _resolve_index(idx2, caller_frame.f_locals)
             var_name = f"{base}[{resolved_idx1}, {resolved_idx2}]"
-        
+
         # 处理单层索引
         elif single_index_match:
             base, idx = single_index_match.groups()
@@ -149,10 +149,10 @@ def pv(p: T, endstr: str = "\n") -> None:
 
 
 V = TypeVar('V')  # 用于索引值的泛型
-def _resolve_index(index_expr: str, locals_dict: Dict[str, V]) -> str:
+def _resolve_index(index_expr: str, locals_dict: dict[str, V]) -> str:
     """解析索引表达式，将变量替换为实际值（处理空值）"""
     index_expr = index_expr.strip()
-    
+
     # 检查是否是变量引用
     if index_expr in locals_dict:
         val = locals_dict[index_expr]
@@ -162,13 +162,13 @@ def _resolve_index(index_expr: str, locals_dict: Dict[str, V]) -> str:
             return '""'
         else:
             return str(val)
-    
+
     # 检查是否是复杂表达式（尝试简单解析）
     try:
         # 尝试评估表达式（仅使用局部变量）
         # 注意：这有一定风险，仅用于调试场景
         return str(eval(index_expr, {}, locals_dict))
-    except (NameError, TypeError, ValueError, SyntaxError) as e:
+    except (NameError, TypeError, ValueError, SyntaxError) as _:
         # 明确捕获可能的异常类型：
         # NameError - 表达式中包含未定义的变量
         # TypeError - 表达式类型错误（如字符串与数字相加）
@@ -177,15 +177,15 @@ def _resolve_index(index_expr: str, locals_dict: Dict[str, V]) -> str:
         return index_expr
 
 
-def pe(exp: T, end: str = "\n") -> None:
+def pe(exp: object, end: str = "\n") -> None:
     """
     打印表达式及其运行结果（调试专用），支持嵌套函数调用等复杂表达式
-    
+
     Args:
         exp: 任意表达式（会被求值）
         end: 输出结尾字符，默认为换行符
     """
-    exp_name: Optional[str] = None
+    exp_name: str | None = None
     # 先获取当前帧，添加空检查
     current_frame = inspect.currentframe()
     if current_frame is None:
@@ -196,26 +196,26 @@ def pe(exp: T, end: str = "\n") -> None:
         caller_frame = current_frame.f_back
         if caller_frame:
             caller_lines = inspect.getframeinfo(caller_frame)[3]
-            
+
             if caller_lines:
                 # 改进的正则：使用平衡括号匹配来处理嵌套函数调用
                 pattern = r"\bpe\s*\(([^()]*+(?:\([^()]*+\)[^()]*+)*+)\)"
-                
+
                 for line in caller_lines:
                     cleaned_line = re.sub(r"#.*$", "", line).strip()
                     match = re.search(pattern, cleaned_line)
-                    
+
                     if match:
                         exp_name = match.group(1).rstrip(',').strip()
                         break
-        
+
         # 显式删除帧引用，帮助垃圾回收
         del current_frame
 
     # 处理未匹配到表达式的情况
     if exp_name is None:
         exp_name = "expression"
-    
+
     # 打印表达式和结果
     print(f"{exp_name} = {exp}", end=end)
 
@@ -266,8 +266,8 @@ class Logit():
             # print(sys._getframe().f_lineno)
             timestr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
             # filename = sys._getframe().f_code.co_filename
-            filename: Optional[str] = None
-            linenum: Optional[int] = None
+            filename: str | None = None
+            linenum: int | None = None
             frame = inspect.currentframe()
             # 获取当前帧的上一帧（即调用者的帧）
             caller_frame = frame.f_back if frame else None
@@ -282,8 +282,8 @@ class Logit():
                 del frame
             # linenum = sys._getframe().f_back.f_back.f_lineno
             # 处理无法获取位置信息的情况
-            file_info = (f"{linenum:03d}@{filename}" 
-                 if (linenum is not None and filename is not None) 
+            file_info = (f"{linenum:03d}@{filename}"
+                 if (linenum is not None and filename is not None)
                  else "unknown location")
             logstring = f"{timestr} {file_info} [{level}]: {msg}"
             print(logstring)
@@ -304,7 +304,7 @@ class Logit():
 
 class EmailLogit(Logit):
     def __init__(self, email: str, level: LogLevel = LogLevel.INFO):
-        self._email = email
+        self._email: str = email
         super().__init__(level, "")
 
     @override
@@ -339,12 +339,12 @@ if __name__ == '__main__':
     arr = ["a", "", None, "d"]
     matrix = [["x", ""], [None, "y"]]
     d = {"": 100, None: 200, "key": 300}
-    
+
     i = 0  # 空字符串的索引
     j = 1  # 第二个元素的索引
     empty_key = ""
     none_key = None
-    
+
     pv(arr[i])
     pv(arr[j])
     pv(matrix[i][j])
@@ -354,7 +354,8 @@ if __name__ == '__main__':
     pv(arr[0] if i > 0 else arr[3])  # 复杂表达式测试
 
     import numpy as np
-    ary1 = np.linspace(0, 39, 4)
+    # import numpy.typing as npt
+    ary1 = np.linspace(0, 39, 4, dtype=np.float32)
     ary2 = [i for i in range(4)]
 
     for i in range(4):
