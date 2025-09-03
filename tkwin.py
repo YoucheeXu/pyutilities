@@ -1042,6 +1042,8 @@ class tkWin(WinBasic):
                     **options)
             case "Entry":
                 ctrl = EntryCtrl(master, **options)
+                if text is not None:
+                    ctrl.set_val(text)
             case "ImageButton":
                 ctrl = ImageBtttonCtrl(master, owner, idctrl,
                     respath=self._res_path, imagefile=attr_dict["image"],
