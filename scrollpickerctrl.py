@@ -143,13 +143,15 @@ class ScrollPicker(tk.Frame):
 
 
 class DateScrollPickerCtrl:
-    def __init__(self, point: tuple[int, int] | None = None):
+    def __init__(self, point: tuple[int, int] | None = None, title: str = ""):
         self._master: tk.Toplevel = tk.Toplevel()
         self._master.withdraw()
 
         self._frame: tk.Frame = tk.Frame(self._master)
 
-        # 初始日期设置为保护属性
+        self._title: str = title if title else "日期选择器"
+
+        # 初始日期设置
         today: datetime.datetime = datetime.datetime.today()
         self._selected_year: int = today.year
         self._selected_month: int = today.month
@@ -197,7 +199,7 @@ class DateScrollPickerCtrl:
         for i in range(3):  # 列
             _ = self._frame.grid_columnconfigure(i, weight=1)
 
-        ttk.Label(self._frame, text="日期选择器", font=("SimHei", 12)).grid(row=0, column=0,
+        ttk.Label(self._frame, text=self._title, font=("SimHei", 12)).grid(row=0, column=0,
             columnspan=3, pady=5)
 
         self._year_scrollpicker.grid(row=1, column=0)
@@ -272,11 +274,13 @@ class DateScrollPickerCtrl:
 
 
 class TimeScrollPickerCtrl:
-    def __init__(self, point: tuple[int, int] | None = None):
+    def __init__(self, point: tuple[int, int] | None = None, title: str = ""):
         self._master: tk.Toplevel = tk.Toplevel()
         self._master.withdraw()
 
         self._frame: tk.Frame = tk.Frame(self._master)
+
+        self._title: str = title if title else "时间选择器"
 
         # 初始时间设置
         now: datetime.datetime = datetime.datetime.now()
@@ -284,17 +288,17 @@ class TimeScrollPickerCtrl:
         self._selected_minute: int = now.minute
 
         self._hour_scrollpicker: ScrollPicker = ScrollPicker(self._frame, self._selected_hour,
-            1, 24, self._on_hour_change)
+            0, 23, self._on_hour_change)
 
         self._minute_scrollpicker: ScrollPicker = ScrollPicker(self._frame, self._selected_minute,
-            1, 60, self._on_minute_change)
-
-        # 创建UI组件
-        self._create_widgets()
+            0, 59, self._on_minute_change)
 
         self._confirm_btn: ttk.Button
         self._result_var: tk.StringVar
         self._result_label: ttk.Label
+
+        # 创建UI组件
+        self._create_widgets()
 
         self._frame.pack(expand = 1, fill = 'both')
 
@@ -322,8 +326,8 @@ class TimeScrollPickerCtrl:
         for i in range(2):  # 列
             _ = self._frame.grid_columnconfigure(i, weight=1)
 
-        ttk.Label(self._frame, text="时间选择器", font=("SimHei", 12)).grid(row=0, column=0,
-            columnspan=3, pady=5)
+        self._title_lbl = ttk.Label(self._frame, text=self._title, font=("SimHei", 12))
+        self._title_lbl.grid(row=0, column=0, columnspan=3, pady=5)
 
         self._hour_scrollpicker.grid(row=1, column=1)
         self._minute_scrollpicker.grid(row=1, column=2)
@@ -362,7 +366,6 @@ class TimeScrollPickerCtrl:
         return f"{self._selected_hour:02d}:{self._selected_minute:02d}"
 
     def _exit(self):
-        print("退出时间选择")
         self._master.grab_release()
         self._master.destroy()
 
@@ -452,7 +455,7 @@ if __name__ == "__main__":
             self._var_time.set(res)
 
         def ask_time(self, x: int, y: int):
-            scrollpicker = TimeScrollPickerCtrl((x, y))
+            scrollpicker = TimeScrollPickerCtrl((x, y), "wahaha")
             return scrollpicker.get_datestr()
 
 
