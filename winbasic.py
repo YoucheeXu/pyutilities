@@ -1,12 +1,5 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-"""
-v1.0.0
-  1. register_eventhandler upgrade to list
-  2. refactor
-  3. refactor init of guibasic
-  4. Dialog support to focused
-"""
 import abc
 import xml.etree.ElementTree as et
 from typing import cast, Literal, Any, Protocol, override
