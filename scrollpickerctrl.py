@@ -143,7 +143,8 @@ class ScrollPicker(tk.Frame):
 
 
 class DateScrollPickerCtrl:
-    def __init__(self, point: tuple[int, int] | None = None, title: str = ""):
+    def __init__(self, point: tuple[int, int] | None = None,
+            title: str = "", initial: str = ""):
         self._master: tk.Toplevel = tk.Toplevel()
         self._master.withdraw()
 
@@ -152,10 +153,16 @@ class DateScrollPickerCtrl:
         self._title: str = title if title else "日期选择器"
 
         # 初始日期设置
-        today: datetime.datetime = datetime.datetime.today()
-        self._selected_year: int = today.year
-        self._selected_month: int = today.month
-        self._selected_day: int = today.day
+        if not initial:
+            today: datetime.datetime = datetime.datetime.today()
+            self._selected_year: int = today.year
+            self._selected_month: int = today.month
+            self._selected_day: int = today.day
+        else:
+            today_list = initial.split("-")
+            self._selected_year = int(today_list[0])
+            self._selected_month = int(today_list[1])
+            self._selected_day = int(today_list[2])
 
         self._year_scrollpicker: ScrollPicker = ScrollPicker(self._frame, self._selected_year,
             1970, 2100, self._on_year_change)
@@ -255,7 +262,7 @@ class DateScrollPickerCtrl:
 
     def get_datestr(self) -> str:
         """ 获取当前选择的日期"""
-        return f"{self._selected_year}-{self._selected_month}-{self._selected_day}"
+        return f"{self._selected_year}-{self._selected_month:02d}-{self._selected_day:02d}"
 
     def _exit(self):
         self._master.grab_release()
@@ -274,7 +281,8 @@ class DateScrollPickerCtrl:
 
 
 class TimeScrollPickerCtrl:
-    def __init__(self, point: tuple[int, int] | None = None, title: str = ""):
+    def __init__(self, point: tuple[int, int] | None = None,
+            title: str = "", initial: str = ""):
         self._master: tk.Toplevel = tk.Toplevel()
         self._master.withdraw()
 
@@ -283,9 +291,14 @@ class TimeScrollPickerCtrl:
         self._title: str = title if title else "时间选择器"
 
         # 初始时间设置
-        now: datetime.datetime = datetime.datetime.now()
-        self._selected_hour: int = now.hour
-        self._selected_minute: int = now.minute
+        if not initial:
+            now: datetime.datetime = datetime.datetime.now()
+            self._selected_hour: int = now.hour
+            self._selected_minute: int = now.minute
+        else:
+            now_list = initial.split(":")
+            self._selected_hour = int(now_list[0])
+            self._selected_minute = int(now_list[1])
 
         self._hour_scrollpicker: ScrollPicker = ScrollPicker(self._frame, self._selected_hour,
             0, 23, self._on_hour_change)
@@ -326,8 +339,8 @@ class TimeScrollPickerCtrl:
         for i in range(2):  # 列
             _ = self._frame.grid_columnconfigure(i, weight=1)
 
-        self._title_lbl = ttk.Label(self._frame, text=self._title, font=("SimHei", 12))
-        self._title_lbl.grid(row=0, column=0, columnspan=3, pady=5)
+        ttk.Label(self._frame, text=self._title, font=("SimHei", 12)).grid(row=0, column=0,
+            columnspan=3, pady=5)
 
         self._hour_scrollpicker.grid(row=1, column=1)
         self._minute_scrollpicker.grid(row=1, column=2)
@@ -439,8 +452,6 @@ if __name__ == "__main__":
         def get_date(self, x: int, y: int):    # x, y位Entry的坐标位置
             # 接收弹窗的数据
             res = self.ask_date(x, y)
-            if res is None:
-                return
             self._var_date.set(res)
 
         def ask_date(self, x: int, y: int):
@@ -450,8 +461,6 @@ if __name__ == "__main__":
         def get_time(self, x: int, y: int):    # x, y位Entry的坐标位置
             # 接收弹窗的数据
             res = self.ask_time(x, y)
-            if res is None:
-                return
             self._var_time.set(res)
 
         def ask_time(self, x: int, y: int):
