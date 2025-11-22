@@ -1,6 +1,7 @@
 # !/usr/bin/python3
 # -*- coding: UTF-8 -*-
 from __future__ import annotations
+import builtins as __builtin__
 # from _typeshed import SupportsWrite
 import sys
 import os
@@ -131,6 +132,7 @@ class ImageBtttonCtrl(tkControl):
         tkControl.__init__(self, parent, title, idself, ctrl)
         self._res_path: str = respath
         self._ww: int = width
+        self._image: ImageTk.PhotoImage
         self._image: ImageTk.PhotoImage
         self._hh: int = height if height else width if width else 0
 
@@ -922,14 +924,9 @@ class tkWin(WinBasic):
     def path(self):
         return self._cur_path
 
-    def debug_print(self,
-            *values: object,
-            sep: str | None = " ",
-            end: str | None = "\n",
-            ffile: SupportsWrite[str] | None = None,
-            flush: Literal[False] = False):
+    def debug_print(self, *args, **kwargs):
         if self._is_debug:
-            print(*values, sep, end, ffile, flush)
+            return __builtin__.print(*args, **kwargs)
 
     def _center_window(self, width: int, hight: int):
         """设置窗口居中和宽高

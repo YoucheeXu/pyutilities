@@ -14,7 +14,7 @@ class tkControl(Control):
         super().__init__(title, idself)
         self._parent: tk.Misc = parent
         self._tkctrl: tk.Widget = tkctrl
-        # self._assemble_type: str = "grid"
+        self._assemble_type: str = ""
 
     @property
     def control(self):
@@ -80,22 +80,32 @@ class tkControl(Control):
 
     def _get_layout_method(self, widget: tk.Widget):
         """判断控件使用的布局方式（pack/grid/place）"""
-        # 检查是否使用了 grid
-        if widget.tk.call("grid", "info", widget):
-            return "grid"
-        # 检查是否使用了 pack
-        elif widget.tk.call("pack", "info", widget):
-            return "pack"
         # 检查是否使用了 place
-        elif widget.tk.call("place", "info", widget):
-            return "place"
-        else:
-            raise ValueError("未使用任何布局管理器")
+        try:
+            if widget.tk.call("place", "info", widget):
+                return "place"
+        except tk.TclError as e:
+            print(e)
+        try:
+            # 检查是否使用了 pack
+            if widget.tk.call("pack", "info", widget):
+                return "pack"
+        except tk.TclError as e:
+            print(e)
+        try:
+            # 检查是否使用了 grid
+            if widget.tk.call("grid", "info", widget):
+                return "grid"
+        except tk.TclError as e:
+            print(e)
+
+        raise ValueError("未使用任何布局管理器")
 
     @override
     def hide(self, is_hide: bool = True):
-        assemble_type = self._get_layout_method(self._tkctrl)
-        match assemble_type:
+        if not self._assemble_type:
+            self._assemble_type = self._get_layout_method(self._tkctrl)
+        match self._assemble_type:
             case "grid":
                 if is_hide:
                     self._tkctrl.grid_remove()
@@ -111,6 +121,8 @@ class tkControl(Control):
                     self._tkctrl.place_forget()
                 else:
                     self._tkctrl.place()
+            case _:
+                raise ValueError(f"unkown layout: {self._assemble_type}")
 
     @override
     def destroy(self):
