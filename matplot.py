@@ -158,7 +158,7 @@ class MatPlotCtrl(tkControl):
                 self._ymin = min(self._ymin, ymin)
                 self._ymax = max(self._ymax, ymax)
 
-        self._ymin = -0.05 if self._ymin == 0 else self._ymin
+        self._ymin = 0 if self._ymin >= 0 else self._ymin
         _ = self._ax.set_ylim(self._ymin * 1.05, self._ymax * 1.1)
 
         self._xmin = float("inf")
