@@ -33,12 +33,14 @@ try:
     from winbasic import EventHanlder, Widget, Dialog, WinBasic
     from tkcontrol import tkControl
     from matplot import MatPlotCtrl
+    from slideswitch import SlideSwitch
     import cv2_utilities as cv2u
 except ImportError:
     from pyutilities.logit import pv, pe, po
     from pyutilities.winbasic import EventHanlder, Widget, Dialog, WinBasic
     from pyutilities.tkcontrol import tkControl
     from pyutilities.matplot import MatPlotCtrl
+    from pyutilities.slideswitch import SlideSwitch
     import pyutilities.cv2_utilities as cv2u
 
 
@@ -1089,6 +1091,8 @@ class tkWin(WinBasic):
                 sel = True if "select" in attr_dict else False
                 ctrl = CheckButtonCtrl(master, self, idctrl,
                     text=text, vartext=vartext, select=sel, **options)
+            case "SlideSwitch":
+                ctrl = SlideSwitch(master, self, idctrl, **options)
             case "Statusbar":
                 ctrl = MultiStatusBar(master, **options)
                 # for subctrl_cfg in list(ctrl_cfg):
