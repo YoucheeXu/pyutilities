@@ -10,12 +10,15 @@
 			<MenuItem Command="Warn Box" options="{'accelerator':'Ctrl+W','underline':0}"/>
 			<MenuItem Command="Error Box" options="{'accelerator':'Ctrl+L','underline':0}"/>
 			<MenuItem Command="Choice Box" options="{'accelerator':'Ctrl+K','underline':0}"/>
-		</MenuItem>		
+		</MenuItem>
+		<MenuItem Header="Dialog">
+			<MenuItem Command="Show Hourdetail Dialog"/>
+			<MenuItem Command="Show EditHour Dialog"/>
+		</MenuItem>
 		<MenuItem Header="Help">
 			<MenuItem Command="About"/>
 		</MenuItem>
 	</Menu>
-
 	<Notebook text="Notebook" layout="pack" pack="{'expand':1,'fill':'both'}">
 		<Tab text="第一页">
 			<LabelFrame text="控件示范区1" layout="grid" grid="{'row':0,'column':0,'padx':8,'pady':4}" childOpt="{'padx':3,'pady':1}">
@@ -40,8 +43,8 @@
 				<Radiobutton text="公正法治" var="varRadSel" value="3" layout="grid" grid="{'row':6,'column':3,'sticky':'W','columnspan':3}"/>
 				<Radiobutton text="爱国敬业" var="varRadSel" value="4" layout="grid" grid="{'row':7,'column':0,'sticky':'W','columnspan':3}"/>
 				<Radiobutton text="诚信友善" var="varRadSel" value="5" layout="grid" grid="{'row':7,'column':1,'sticky':'W','columnspan':3}"/>
-				<Style text="BW.TLabel" options="{'font':('Times', '10','bold')}"/>
-				<Label text="   社会主义核心价值观" options="{'style':'BW.TLabel'}" layout="grid" grid="{'row':7,'column':2,'sticky':'EW','columnspan':2}"/>
+				<Style text="BR.TLabel" options="{'background':'red','font':('Times', '10','bold')}"/>
+				<Label text="   社会主义核心价值观" options="{'style':'BR.TLabel'}" layout="grid" grid="{'row':7,'column':2,'sticky':'EW','columnspan':2}"/>
 				<LabelFrame text=" 嵌套区域 " layout="grid" grid="{'row':8,'column':0,'columnspan':4}" childOpt="{'padx':8,'pady':4}">
 					<Label text="你才25岁，你可以成为任何你想成为的人。" layout="grid" grid="{'row':0,'column':0}"/>
 					<Label text="不要在乎一城一池的得失，要执着。" layout="grid" grid="{'row':1,'column':0,'sticky':'W'}"/>
@@ -123,4 +126,25 @@
 			</Tab>
 		</Notebook>
     </Dialog>
+    <CustomDialog id="dlgEditTodo" text="Todo Details" Width="400" Height="600">
+    	<Style text="BW.TLabel" options="{'background':'white'}"/>
+    	<Frame id="frmInfoEditTodo" layout="pack" pack="{'padx':8,'pady':4,'expand':1,'fill':'x'}" options="{'bg':'white'}">
+    		<Entry id="txtNameEditTodo" text="" options="{'width':20}" layout="pack" pack="{}"/>
+    		<Entry id="txtNoteEditTodo" text="备注" options="{'width':20}" layout="pack" pack="{}"/>
+    	</Frame>
+    	<Frame id="frmReminderEditTodo" layout="pack" pack="{'pady':4,'expand':1,'fill':'x'}">
+    		<Frame id="frmDateEditTodo" layout="pack" pack="{'pady':2}" options="{'bg':'white'}">
+    			<ImagePanel id="imgDateEditTodo" image="calendar.png" options="{'width':40,'height':40,'bg':'white'}" layout="grid" grid="{'row':0,'column':0,'rowspan':2}"/>
+    			<Label id="lblDateEditTodo" text="日期" clickable="true" options="{'width':48,'style':'BW.TLabel'}" layout="grid" grid="{'row':0,'column':1,'sticky':'w'}"/>
+    			<Label id="lblSelDateEditTodo" text="" clickable="true" options="{'width':48,'style':'BW.TLabel'}" layout="grid" grid="{'row':1,'column':1,'sticky':'w'}"/>
+    			<SlideSwitch id="slsDateEditTodo" text="" options="{'width':50,'height':25}" layout="grid" grid="{'row':0,'column':2,'rowspan':2,'sticky':'w','padx':4}"/>
+    		</Frame>
+    		<Frame id="frmTimeEditTodo" layout="pack" pack="{'pady':2}" options="{'bg':'white'}">
+    			<ImagePanel id="imgTimeEditTodo" image="VaadinAlarm.png" options="{'width':40,'height':40,'bg':'white'}" layout="grid" grid="{'row':0,'column':0,'rowspan':2}"/>
+    			<Label id="lblTimeEditTodo" text="时间" clickable="true" options="{'width':48,'style':'BW.TLabel'}" layout="grid" grid="{'row':0,'column':1,'sticky':'w'}"/>
+    			<Label id="lblSelTimeEditTodo" text="" clickable="true" options="{'width':48,'style':'BW.TLabel'}" layout="grid" grid="{'row':1,'column':1,'sticky':'w'}"/>
+    			<SlideSwitch id="slsTimeEditTodo" text="" options="{'width':50,'height':25}" layout="grid" grid="{'row':0,'column':2,'rowspan':2,'sticky':'w','padx':4}"/>
+    		</Frame>
+    	</Frame>
+	</CustomDialog>
 </Window>

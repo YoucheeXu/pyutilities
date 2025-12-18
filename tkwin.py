@@ -51,6 +51,7 @@ IS_WINDOWS = platform.system() == "Windows"
 class LabelCtrl(tkControl):
     def __init__(self, parent: tk.Misc, owner: Dialog, idself: str,
             text: str, clickable: bool, **options: Any):
+        po(f"{idself}: {options}")
         ctrl = ttk.Label(parent, text=text, **options)
         super().__init__(parent, text, idself, ctrl)
         if clickable:
@@ -134,7 +135,6 @@ class ImageBtttonCtrl(tkControl):
         tkControl.__init__(self, parent, title, idself, ctrl)
         self._res_path: str = respath
         self._ww: int = width
-        self._image: ImageTk.PhotoImage
         self._image: ImageTk.PhotoImage
         self._hh: int = height if height else width if width else 0
 
@@ -651,19 +651,21 @@ class tkWM(Generic[T], Widget):
 
 # TODO: auto scrollable or not
 class DialogCtrl(Dialog):
-    def __init__(self, parent: tk.Tk | tk.Toplevel, app: WinBasic, idself: str, *,
-            title: str, width: int, height: int,
-            subctrlcfg_list: list[et.Element], **options: Any):
-        super().__init__(title, width, height)
-        # self._parent: tk.Widget = parent
-        self._parent: tk.Tk | tk.Toplevel = parent
+    def __init__(self, app: tkWin, dlg_cfg: et.Element):
+        attr_dict = dlg_cfg.attrib
+        super().__init__(attr_dict.get("text", ""), int(attr_dict["Width"]), height=int(attr_dict["Height"]))
+        # options: dict[str, Any] = {}
+        # if "options" in attr_dict:
+            # options = eval(attr_dict["options"])
+        self._parent: tk.Tk | tk.Toplevel = app.win
         self._owner: Dialog | None = None
-        # self._top: tk.Toplevel | None = None
+        self._xx: int = 0
+        self._yy: int = 0
         self._top: tkWM[tk.Toplevel] | None = None
-        self._app: WinBasic = app
+        self._app: tkWin = app
         self._alive: bool = False
-        self._idself: str = idself
-        self._subctrlcfg_list: list[et.Element] = subctrlcfg_list
+        self._idself: str = attr_dict["id"]
+        self._subctrlcfg_list: list[et.Element] = list(dlg_cfg)
         self._idctrl_list: list[str] = []
         self._extral_msg: dict[str, object] = {}
 
@@ -695,8 +697,8 @@ class DialogCtrl(Dialog):
 
         # x, y, _, _ = self._app.get_winsize()
         if owner is not None:
-            self._xx: int = x
-            self._yy: int = y
+            self._xx = x
+            self._yy = y
         else:
             self._xx = self._parent.winfo_rootx() + x
             self._yy = self._parent.winfo_rooty() + y
@@ -745,12 +747,12 @@ class DialogCtrl(Dialog):
 
         bntcancel_xml = self._app.create_xml("Button", {"id": f"btnCancel{iddlg}",
             "text": "Cancel", "options": "{'width':20}"}, frmbot_xml)
-        id_bntcancel, bntcancel_ctrl = self._app.create_control(frmbot_ctrl,
+        id_btncancel, btncancel_ctrl = self._app.create_control(frmbot_ctrl,
             bntcancel_xml, 1, self)
         # self._idctrl_list.append(idctrl)
-        self._idctrl_dict[id_bntcancel] = bntcancel_ctrl
+        self._idctrl_dict[id_btncancel] = btncancel_ctrl
         # pv(self._idctrl_list)
-        _ = self._app.assemble_control(bntcancel_ctrl, {"layout":"pack",
+        _ = self._app.assemble_control(btncancel_ctrl, {"layout":"pack",
             "pack":"{'side':'right','fill':'both','expand':True,'padx':5,'pady':5}"}, f"{'  '*1}")
 
         _ = self._app.assemble_control(frmbot_ctrl, {"layout": "pack",
@@ -767,10 +769,10 @@ class DialogCtrl(Dialog):
         self._top.control.transient(self._parent)   # dialog window is related to main
         self._top.control.protocol("WM_DELETE_WINDOW", self.destroy) # intercept close button
 
-        Dialog.register_eventhandler(self, "btnCancel" + self._idself, self._do_cancel)
+        Dialog.register_eventhandler(self, id_btncancel, self._do_cancel)
         # Dialog.register_eventhandler(self, "btnCancel" + self._idself,
             # lambda mousepos: self._do_cancel(**kwargs))
-        Dialog.register_eventhandler(self, "btnConfirm" + self._idself, self._do_confirm)
+        Dialog.register_eventhandler(self, id_btnconfirm, self._do_confirm)
 
         if self._owner is not None:
             self._owner.back()
@@ -1027,6 +1029,7 @@ class tkWin(WinBasic):
                 assert text is not None
                 # clickable = cast(bool, attr_dict.get("clickable", False))
                 clickable = True if "clickable" in attr_dict else False
+                po(f"create {idctrl}: {options}")
                 ctrl = LabelCtrl(master, owner, idctrl, text, clickable, **options)
             case "Button":
                 assert text is not None
@@ -1124,9 +1127,7 @@ class tkWin(WinBasic):
                     int(attr_dict["num_column"]), int(attr_dict["pic_size"]),
                     self._res_path)
             case "Dialog":
-                ctrl = DialogCtrl(master, self, idctrl, title=text,
-                    width=int(attr_dict["Width"]), height=int(attr_dict["Height"]),
-                    subctrlcfg_list=list(ctrl_cfg), **options)
+                ctrl = DialogCtrl(self, ctrl_cfg)
                 self.debug_print()
             case "Notebook":
                 ctrl = NotebookCtrl(master, self, idctrl,
@@ -1336,6 +1337,41 @@ class tkWin(WinBasic):
 
 
 if __name__ == "__main__":
+
+    import random
+    import datetime
+
+    try:
+        from matplot import LineData
+    except ImportError:
+        from pyutilities.matplot import LineData
+
+    class EditHourDlg(DialogCtrl):
+        def __init__(self, app: tkWin, dlg_cfg: et.Element):
+            super().__init__(app, dlg_cfg)
+
+        @override
+        def _beforego(self, **kwargs: object):
+            po(f"{self._idself} beforego")
+
+        @override
+        def _confirm(self, **kwargs: object):
+            po(f"{self._idself} confirm")
+
+        @override
+        def _cancel(self, **kwargs: object):
+            po(f"{self._idself} cancel")
+
+        @override
+        def process_message(self, idmsg: str, **kwargs: object):
+            kwargs.update(self._extral_msg)
+            if self.alive:
+                match idmsg:
+                    case _:
+                        return super().process_message(idmsg, **kwargs)
+                return True
+            return super().process_message(idmsg, **kwargs)
+
     class ExampleApp(tkWin):
         def __init__(self, cur_path: str, xmlfile: str):
             super().__init__(cur_path, xmlfile)
@@ -1346,12 +1382,98 @@ if __name__ == "__main__":
             self._idx_right_horizontal: int = 0
             self._hourdetail_dlg: DialogCtrl = cast(DialogCtrl,
                 self.get_control("dlgHourDetail"))
+            self._hourdetail_dlg.filter_message(self._hourdetaildlg_processmessage)
+            self._hourdetail_dlg.register_eventhandler("confirm", self._hourdetaildlg_confirm)
 
         def _create_label(self, parent: tkControl, lid: str, rowid: int, txt: str):
             lbl_xml = self.create_xml("Label", {"text": txt, "id": lid})
             _, lbl_ctrl = self.create_control(parent, lbl_xml)
             self.assemble_control(lbl_ctrl, {"layout":"grid",
                 "grid":f"{{'row':{rowid},'column':0,'sticky':'w'}}"})
+
+        def show_hourdetaildlg(self, owner: Dialog | None = None, x: int = 0, y: int = 0,
+                **kwargs: object):
+            kwargs.update({"name": "English Read"})
+            self._hourdetail_dlg.do_show(self, x+20, y+20, **kwargs)
+
+        def _hourdetaildlg_beforego(self, **kwargs: object):
+            po(f"_hourdetaildlg_beforego: {kwargs}")
+
+            lbl_item = cast(LabelCtrl, self.get_control("lblInfoHourDetail"))
+            lbl_item.set_text(kwargs["name"])
+
+            week_day = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
+            limit_ydata: list[float] = [0] * 7
+
+            per_minutes = 60
+            limit_ydata = [per_minutes, per_minutes, per_minutes, \
+                per_minutes, per_minutes, per_minutes, per_minutes]
+
+            plt_everyday = cast(MatPlotCtrl, self.get_control("pltEveryDayHour"))
+            xdata: list[int] = []
+            father_ydata: list[float] = []
+            children_ydata: dict[int, list[float]] = {}
+            labels: list[str] = []
+            today = datetime.datetime.today().date()
+            monday = today + datetime.timedelta(days=-today.weekday())
+            for i in range(7):
+                day = monday + datetime.timedelta(days=i)
+                weekday = day.weekday()
+                labels.append(f"{week_day[weekday]}\n{day.day}")
+                xdata.append(i)
+                minutes = random.randint(0, 15)
+                father_ydata.append(minutes)
+                # limit_ydata.append(1.0)
+                po(f"minutes of {day} is {minutes}")
+                for sid in range(3):
+                    minutes = random.randint(0, 15)
+                    if children_ydata.get(sid) is None:
+                        children_ydata[sid] = [minutes]
+                    else:
+                        children_ydata[sid].append(minutes)
+            plt_everyday.xdata = xdata
+            father_yline = LineData(father_ydata,
+                {"tick_label":labels,"width":0.4,"facecolor":"green"}, "bar")
+                # {"width":0.4,"facecolor":"green"}, "bar")
+            _ = plt_everyday.add_line(father_yline)
+            bottom = father_ydata
+            for sid, child_ydata in children_ydata.items():
+                child_yline = LineData(child_ydata, {"width":0.4,"bottom":bottom}, "bar")
+                bottom = child_ydata
+                _ = plt_everyday.add_line(child_yline)
+            limit_yline = LineData(limit_ydata, {"linestyle":"dotted","color":"red"})
+            _ = plt_everyday.add_line(limit_yline)
+            plt_everyday.draw()
+
+        def _hourdetaildlg_confirm(self, **kwargs: object) -> tuple[bool, str]:
+            po(f"_hourdetaildlg_confirm: {kwargs}")
+            
+            return True, ""
+
+        def _hourdetaildlg_cancel(self, **kwargs: object) -> tuple[bool, str]:
+            po(f"_hourdetaildlg_cancel: {kwargs}")
+            return True, ""
+
+        def _hourdetaildlg_processmessage(self, idmsg: str, **kwargs: object):
+            if self._hourdetail_dlg.alive:
+                match idmsg:
+                    case "beforego":
+                        self._hourdetaildlg_beforego(**kwargs)
+                    case "cancel":
+                        self._hourdetaildlg_cancel(**kwargs)
+                    case _:
+                        return None
+                return True
+            return None
+
+        def show_edithourdlg(self, owner: Dialog | None = None, x: int = 0, y: int = 0,
+                **kwargs: object):
+            dlg_id = "dlgEditTodo"
+            dlg_cfg = self.get_customctrlcfg(dlg_id)
+            dlg = EditHourDlg(self, dlg_cfg)
+            # self._gui.register_customctrl(dlg_id, recordhour_dlg)
+            dlg.do_show(owner, x+20, y+20, **kwargs)
 
         @override
         def process_message(self, idmsg: str, **kwargs: object):
@@ -1370,11 +1492,12 @@ if __name__ == "__main__":
                         self.show_info('显示选择结果', '您选择了“否”，谢谢参与！')
                 case "varRadSel":
                     values = ["富强民主", "文明和谐", "自由平等", "公正法治", "爱国敬业", "诚信友善"]
-                    monty2 = cast(ttk.LabelFrame, self.get_control("控件示范区2"))
-                    monty2.configure(text=values[int(kwargs["val"])])
+                    monty2 = cast(LabelFrameCtrl, self.get_control("控件示范区2"))
+                    idx = cast(int, kwargs["val"])
+                    monty2.configure(text=values[idx])
                 case "varChkEna":
                     check_btn = cast(CheckButtonCtrl, self.get_control("遵从内心"))
-                    if int(kwargs["val"]) == 1:
+                    if cast(int, kwargs["val"]) == 1:
                         check_btn.disable()
                     else:
                         check_btn.enable()
@@ -1387,7 +1510,7 @@ if __name__ == "__main__":
                     pass
                 case "点击之后_按钮失效":
                     btn = cast(ButtonCtrl, self.get_control("点击之后_按钮失效"))
-                    name = self.get_control("name")
+                    name = cast(EntryCtrl, self.get_control("name"))
                     btn.configure(text='Hello\n ' + name.get_val())
                     # self.disable_control(btn)
                     btn.disable()
@@ -1446,9 +1569,14 @@ if __name__ == "__main__":
                     self.delete_control(id_lbl)
                     self._idx_right_horizontal -= 1
                 case "About":
+                    pass
+                case "ShowHourdetailDialog":
                     # x, y = cast(tuple[int, int], kwargs["mousepos"])
                     x, y = self._xx, self._yy
-                    self._hourdetail_dlg.do_show(self, x+20, y+20, **kwargs)
+                    self.show_hourdetaildlg(self, x+20, y+20, **kwargs)
+                case "ShowEditHourDialog":
+                    x, y = self._xx, self._yy
+                    self.show_edithourdlg(self, x+20, y+20, **kwargs)
                 case _:
                     return super().process_message(idmsg, **kwargs)
             return True

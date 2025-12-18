@@ -123,6 +123,15 @@ class Dialog(Widget, metaclass=abc.ABCMeta):
                 po(f"{idctrl} doesn't support back")
         self._backed = bset
 
+    def _beforego(self, **kwargs: object):
+        pass
+
+    def _confirm(self, **kwargs: object) -> tuple[bool, str]:
+        return True, ""
+
+    def _cancel(self, **kwargs: object) -> tuple[bool, str]:
+        return True, ""
+
     def register_eventhandler(self, idmsg: str, handler: EventHanlder):
         handlerlist = self._eventhandler_dict.get(idmsg)
         if handlerlist is not None:
@@ -177,7 +186,16 @@ class Dialog(Widget, metaclass=abc.ABCMeta):
                 ret = func(**kwargs)
             return ret
 
-        po(f"undeal msg of {idmsg}: {kwargs}")
+        match idmsg:
+            case "beforego":
+                self._beforego(**kwargs)
+            case "confirm":
+                return self._confirm(**kwargs)
+            case "cancel":
+                self._cancel(**kwargs)
+            case _:
+                po(f"undeal msg of {idmsg}: {kwargs}")
+        return True
 
     @abc.abstractmethod
     def destroy(self, **kwargs: object):
@@ -200,6 +218,8 @@ class WinBasic(Dialog, metaclass=abc.ABCMeta):
         Dialog.__init__(self, win_attr["Title"], w, h)
         # self._idctrl_dict: dict[str, object] = {}
         # self._idctrl_dict: OrderedDict[str, object] = OrderedDict()
+
+        self._customctrl_dict: dict[str, et.Element] = {}
 
     @abc.abstractmethod
     def create_window(self):
@@ -225,9 +245,14 @@ class WinBasic(Dialog, metaclass=abc.ABCMeta):
     def create_controls(self, parent: Widget, ctrl_cfg: et.Element,
             level: int = 0, owner: Dialog | None = None) -> OrderedDict[str, Widget]:
         idctrl_dict: OrderedDict[str, Widget] = OrderedDict()
+        tag = ctrl_cfg.tag
+        if tag == "CustomDialog":
+            attr_dict = ctrl_cfg.attrib
+            idctrl = attr_dict["id"]
+            self._customctrl_dict[idctrl] = ctrl_cfg
+            return idctrl_dict
         idctrl, ctrl = self.create_control(parent, ctrl_cfg, level, owner)
         idctrl_dict[idctrl] = ctrl
-        tag = ctrl_cfg.tag
         if tag in ["Menu", "Notebook", "RadiobuttonGroup",
             "Statusbar", "Toolbar", "Dialog"]:
             pass
@@ -246,6 +271,14 @@ class WinBasic(Dialog, metaclass=abc.ABCMeta):
 
     def get_control(self, idctrl: str):
         return self._idctrl_dict[idctrl]
+
+    def get_customctrlcfg(self, idctrl: str):
+        return self._customctrl_dict[idctrl]
+
+    # def register_customctrl(self, idctrl: str, ctrl: Widget):
+        # if idctrl in self._idctrl_dict:
+            # raise KeyError(f"duplicate key: {idctrl} in idctrl dict")
+        # self._idctrl_dict[idctrl] = ctrl
 
     @abc.abstractmethod
     def show_err(self, title: str = "", message: str = ""):
