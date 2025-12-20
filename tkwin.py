@@ -658,7 +658,7 @@ class DialogCtrl(Dialog):
         # if "options" in attr_dict:
             # options = eval(attr_dict["options"])
         self._parent: tk.Tk | tk.Toplevel = app.win
-        self._owner: Dialog | None = None
+        # self._owner: Dialog | None = None
         self._xx: int = 0
         self._yy: int = 0
         self._top: tkWM[tk.Toplevel] | None = None

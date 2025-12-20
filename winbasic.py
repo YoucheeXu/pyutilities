@@ -95,6 +95,7 @@ class Dialog(Widget, metaclass=abc.ABCMeta):
         self._idctrl_dict: OrderedDict[str, Widget] = OrderedDict()
         self._eventhandler_dict: dict[str, list[EventHanlder]] = {}
         self._msgs_hanlders: list[tuple[int, list[str], EventsHanlder]] = []
+        self._owner: Dialog | None = None
 
     @property
     def title(self):
@@ -192,8 +193,10 @@ class Dialog(Widget, metaclass=abc.ABCMeta):
             case "confirm":
                 return self._confirm(**kwargs)
             case "cancel":
-                self._cancel(**kwargs)
+                return self._cancel(**kwargs)
             case _:
+                if self._owner is not None:
+                    return self._owner.process_message(idmsg, **kwargs)
                 po(f"undeal msg of {idmsg}: {kwargs}")
         return True
 
