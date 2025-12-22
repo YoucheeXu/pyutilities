@@ -13,7 +13,7 @@
 		</MenuItem>
 		<MenuItem Header="Dialog">
 			<MenuItem Command="Show Hourdetail Dialog"/>
-			<MenuItem Command="Show EditHour Dialog"/>
+			<MenuItem Command="Show Tododetail Dialog"/>
 		</MenuItem>
 		<MenuItem Header="Help">
 			<MenuItem Command="About"/>
@@ -126,7 +126,7 @@
 			</Tab>
 		</Notebook>
     </Dialog>
-    <CustomDialog id="dlgEditTodo" text="Todo Details" Width="400" Height="600">
+    <CustomDialog id="dlgTodoDetail" text="Todo Detail" Width="400" Height="600">
     	<Style text="BW.TLabel" options="{'background':'white'}"/>
     	<Frame id="frmInfoEditTodo" layout="pack" pack="{'padx':8,'pady':4,'expand':1,'fill':'x'}" options="{'bg':'white'}">
     		<Entry id="txtNameEditTodo" text="" options="{'width':20}" layout="pack" pack="{}"/>

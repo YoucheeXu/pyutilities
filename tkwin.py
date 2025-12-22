@@ -30,14 +30,14 @@ from idlelib.tooltip import Hovertip
 
 try:
     from logit import pv, pe, po
-    from winbasic import EventHanlder, Widget, Dialog, WinBasic
+    from winbasic import EventHanlder, Widget, Container, Dialog, WinBasic
     from tkcontrol import tkControl
     from matplot import MatPlotCtrl
     from slideswitch import SlideSwitch
     import cv2_utilities as cv2u
 except ImportError:
     from pyutilities.logit import pv, pe, po
-    from pyutilities.winbasic import EventHanlder, Widget, Dialog, WinBasic
+    from pyutilities.winbasic import EventHanlder, Widget, Container, Dialog, WinBasic
     from pyutilities.tkcontrol import tkControl
     from pyutilities.matplot import MatPlotCtrl
     from pyutilities.slideswitch import SlideSwitch
@@ -51,7 +51,7 @@ IS_WINDOWS = platform.system() == "Windows"
 class LabelCtrl(tkControl):
     def __init__(self, parent: tk.Misc, owner: Dialog, idself: str,
             text: str, clickable: bool, **options: Any):
-        po(f"{idself}: {options}")
+        # po(f"{idself}: {options}")
         ctrl = ttk.Label(parent, text=text, **options)
         super().__init__(parent, text, idself, ctrl)
         if clickable:
@@ -669,12 +669,12 @@ class DialogCtrl(Dialog):
         self._idctrl_list: list[str] = []
         self._extral_msg: dict[str, object] = {}
 
-    @property
-    def owner(self):
-        if self._owner is not None:
-            return self._owner
-        else:
-            return self._app
+    # @property
+    # def owner(self):
+    #     if self._owner is not None:
+    #         return self._owner
+    #     else:
+    #         return self._app
 
     @override
     def set_title(self, val: str):
@@ -686,7 +686,7 @@ class DialogCtrl(Dialog):
     def alive(self):
         return self._alive
 
-    def do_show(self, owner: Dialog | None = None, x: int = 0, y: int = 0, **kwargs: object):
+    def do_show(self, owner: Container | None = None, x: int = 0, y: int = 0, **kwargs: object):
         po(f"show Dialog {self._idself}: {kwargs}")
         # self.deiconify()
         self._alive = True
@@ -769,13 +769,13 @@ class DialogCtrl(Dialog):
         self._top.control.transient(self._parent)   # dialog window is related to main
         self._top.control.protocol("WM_DELETE_WINDOW", self.destroy) # intercept close button
 
-        Dialog.register_eventhandler(self, id_btncancel, self._do_cancel)
-        # Dialog.register_eventhandler(self, "btnCancel" + self._idself,
-            # lambda mousepos: self._do_cancel(**kwargs))
-        Dialog.register_eventhandler(self, id_btnconfirm, self._do_confirm)
+        # Container.register_eventhandler(self, id_btncancel, self._do_cancel)
+        self.register_eventhandler(id_btncancel, self._do_cancel)
+        # Container.register_eventhandler(self, id_btnconfirm, self._do_confirm)
+        self.register_eventhandler(id_btnconfirm, self._do_confirm)
 
-        if self._owner is not None:
-            self._owner.back()
+        # if self._owner is not None:
+        #     self._owner.back()
         super().back(False)
 
         # 设置achieved_value，使该窗口始终处于其他窗口的上层
@@ -825,7 +825,7 @@ class DialogCtrl(Dialog):
                     self._app.show_err(self._title, msg)
                     return
             except AttributeError as r:
-                po(f"{self._title} Warnning to exit: {r}")
+                po(f"Warnning: {self._title} to exit, because {r}")
 
             self._top.control.grab_release()
             super().back()
@@ -838,8 +838,8 @@ class DialogCtrl(Dialog):
             self._top.control.destroy()
             self._top = None
         self._alive = False
-        if self._owner is not None:
-            self._owner.back(False)
+        # if self._owner is not None:
+        #     self._owner.back(False)
         super().destroy()
 
 _T_contra = TypeVar("_T_contra", contravariant=True)
@@ -928,9 +928,9 @@ class tkWin(WinBasic):
     def path(self):
         return self._cur_path
 
-    def debug_print(self, *args, **kwargs):
+    def debug_print(self, *args: object, **kwargs: object):
         if self._is_debug:
-            return __builtin__.print(*args, **kwargs)
+            __builtin__.print(*args, **kwargs)
 
     def _center_window(self, width: int, hight: int):
         """设置窗口居中和宽高
@@ -1029,7 +1029,7 @@ class tkWin(WinBasic):
                 assert text is not None
                 # clickable = cast(bool, attr_dict.get("clickable", False))
                 clickable = True if "clickable" in attr_dict else False
-                po(f"create {idctrl}: {options}")
+                # po(f"create {idctrl}: {options}")
                 ctrl = LabelCtrl(master, owner, idctrl, text, clickable, **options)
             case "Button":
                 assert text is not None
@@ -1287,8 +1287,8 @@ class tkWin(WinBasic):
 
     @override
     def go(self):
-        WinBasic.register_eventhandler(self, "Exit", self.exit)
-        WinBasic.register_eventhandler(self, "Quit", self.exit)
+        Container().register_eventhandler("Exit", self.exit)
+        Container().register_eventhandler("Quit", self.exit)
 
         super().back(False)
 
@@ -1346,7 +1346,7 @@ if __name__ == "__main__":
     except ImportError:
         from pyutilities.matplot import LineData
 
-    class EditHourDlg(DialogCtrl):
+    class TodoDetailDlg(DialogCtrl):
         def __init__(self, app: tkWin, dlg_cfg: et.Element):
             super().__init__(app, dlg_cfg)
 
@@ -1357,10 +1357,12 @@ if __name__ == "__main__":
         @override
         def _confirm(self, **kwargs: object):
             po(f"{self._idself} confirm")
+            return True, ""
 
         @override
         def _cancel(self, **kwargs: object):
             po(f"{self._idself} cancel")
+            return True, ""
 
         @override
         def process_message(self, idmsg: str, **kwargs: object):
@@ -1369,7 +1371,6 @@ if __name__ == "__main__":
                 match idmsg:
                     case _:
                         return super().process_message(idmsg, **kwargs)
-                return True
             return super().process_message(idmsg, **kwargs)
 
     class ExampleApp(tkWin):
@@ -1380,8 +1381,8 @@ if __name__ == "__main__":
             self._idx_left_horizontal: int = 0
             self._idx_right_vertical: int = 0
             self._idx_right_horizontal: int = 0
-            self._hourdetail_dlg: DialogCtrl = cast(DialogCtrl,
-                self.get_control("dlgHourDetail"))
+
+            self._hourdetail_dlg: DialogCtrl = cast(DialogCtrl, self.get_control("dlgHourDetail"))
             self._hourdetail_dlg.filter_message(self._hourdetaildlg_processmessage)
             self._hourdetail_dlg.register_eventhandler("confirm", self._hourdetaildlg_confirm)
 
@@ -1394,13 +1395,13 @@ if __name__ == "__main__":
         def show_hourdetaildlg(self, owner: Dialog | None = None, x: int = 0, y: int = 0,
                 **kwargs: object):
             kwargs.update({"name": "English Read"})
-            self._hourdetail_dlg.do_show(self, x+20, y+20, **kwargs)
+            self._hourdetail_dlg.do_show(owner, x+20, y+20, **kwargs)
 
         def _hourdetaildlg_beforego(self, **kwargs: object):
             po(f"_hourdetaildlg_beforego: {kwargs}")
 
             lbl_item = cast(LabelCtrl, self.get_control("lblInfoHourDetail"))
-            lbl_item.set_text(kwargs["name"])
+            lbl_item.set_text(cast(str, kwargs["name"]))
 
             week_day = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
@@ -1448,7 +1449,6 @@ if __name__ == "__main__":
 
         def _hourdetaildlg_confirm(self, **kwargs: object) -> tuple[bool, str]:
             po(f"_hourdetaildlg_confirm: {kwargs}")
-            
             return True, ""
 
         def _hourdetaildlg_cancel(self, **kwargs: object) -> tuple[bool, str]:
@@ -1461,17 +1461,17 @@ if __name__ == "__main__":
                     case "beforego":
                         self._hourdetaildlg_beforego(**kwargs)
                     case "cancel":
-                        self._hourdetaildlg_cancel(**kwargs)
+                        return self._hourdetaildlg_cancel(**kwargs)
                     case _:
                         return None
                 return True
             return None
 
-        def show_edithourdlg(self, owner: Dialog | None = None, x: int = 0, y: int = 0,
+        def show_tododetaildlg(self, owner: Dialog | None = None, x: int = 0, y: int = 0,
                 **kwargs: object):
-            dlg_id = "dlgEditTodo"
+            dlg_id = "dlgTodoDetail"
             dlg_cfg = self.get_customctrlcfg(dlg_id)
-            dlg = EditHourDlg(self, dlg_cfg)
+            dlg = TodoDetailDlg(self, dlg_cfg)
             # self._gui.register_customctrl(dlg_id, recordhour_dlg)
             dlg.do_show(owner, x+20, y+20, **kwargs)
 
@@ -1574,9 +1574,9 @@ if __name__ == "__main__":
                     # x, y = cast(tuple[int, int], kwargs["mousepos"])
                     x, y = self._xx, self._yy
                     self.show_hourdetaildlg(self, x+20, y+20, **kwargs)
-                case "ShowEditHourDialog":
+                case "ShowTododetailDialog":
                     x, y = self._xx, self._yy
-                    self.show_edithourdlg(self, x+20, y+20, **kwargs)
+                    self.show_tododetaildlg(self, x+20, y+20, **kwargs)
                 case _:
                     return super().process_message(idmsg, **kwargs)
             return True

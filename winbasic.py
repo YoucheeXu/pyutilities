@@ -83,7 +83,85 @@ class Control(Widget, metaclass=abc.ABCMeta):
         pass
 
 
-class Dialog(Widget, metaclass=abc.ABCMeta):
+class Container(Widget):
+    def __init__(self):
+        super().__init__()
+        self._eventhandler_dict: dict[str, list[EventHanlder]] = {}
+        self._msgs_hanlders: list[tuple[int, list[str], EventsHanlder]] = []
+        self._owner: Container | None = None
+
+    @property
+    def owner(self):
+        return self._owner
+
+    @owner.setter
+    def owner(self, val: "Container"):
+        self._owner = val  
+
+    def register_eventhandler(self, idmsg: str, handler: EventHanlder):
+        """_summary_
+
+        Args:
+            idmsg (str): _description_
+            handler (EventHanlder): _description_
+        """
+        handlerlist = self._eventhandler_dict.get(idmsg)
+        if handlerlist is not None:
+            self._eventhandler_dict[idmsg].append(handler)
+        else:
+            self._eventhandler_dict[idmsg] = [handler]
+        pv(self._eventhandler_dict)
+
+    def filter_message(self, hanlder: EventsHanlder,
+            typ: Literal[-1, 0, 1] = 0, msglst: list[str] | None = None):
+        """filter message to deal with
+
+        Args:
+            hanlder (): hanlder to deal message
+            typ ():
+                1: filter all message in msglst
+                0: all message
+                -1: filter any message except in msglst
+            msglst(): message list
+        """
+        if msglst is not None:
+            self._msgs_hanlders.append((typ, msglst, hanlder))
+        else:
+            self._msgs_hanlders.append((typ, [], hanlder))
+        pv(self._msgs_hanlders)
+
+    def process_message(self, idmsg: str, **kwargs: object) -> object:
+        for typ, msglst, hander in self._msgs_hanlders:
+            if typ == 0:
+                ret = hander(idmsg, **kwargs)
+                if ret is not None:
+                    return ret
+            elif typ == 1:
+                if idmsg in msglst:
+                    ret = hander(idmsg, **kwargs)
+                    if ret is not None:
+                        return ret
+            elif typ == -1:
+                if idmsg not in msglst:
+                    ret = hander(idmsg, **kwargs)
+                    if ret is not None:
+                        return ret
+
+        funcs = self._eventhandler_dict.get(idmsg, None)
+        if funcs is not None:
+            ret = None
+            for func in funcs:
+                ret = func(**kwargs)
+            return ret
+        pv(self._eventhandler_dict)
+
+        if self._owner is not None:
+            return self._owner.process_message(idmsg, **kwargs)
+        po(f"undeal msg of {idmsg}: {kwargs}")
+        return None
+
+
+class Dialog(Container, metaclass=abc.ABCMeta):
     def __init__(self, title: str, width: int, height: int):
         super().__init__()
         self._xx: int = 0
@@ -93,9 +171,6 @@ class Dialog(Widget, metaclass=abc.ABCMeta):
         self._hh: int = height
         self._backed: bool = True
         self._idctrl_dict: OrderedDict[str, Widget] = OrderedDict()
-        self._eventhandler_dict: dict[str, list[EventHanlder]] = {}
-        self._msgs_hanlders: list[tuple[int, list[str], EventsHanlder]] = []
-        self._owner: Dialog | None = None
 
     @property
     def title(self):
@@ -125,68 +200,16 @@ class Dialog(Widget, metaclass=abc.ABCMeta):
         self._backed = bset
 
     def _beforego(self, **kwargs: object):
-        pass
+        _ = super().process_message("beforego", **kwargs)
 
     def _confirm(self, **kwargs: object) -> tuple[bool, str]:
-        return True, ""
+        return cast(tuple[bool, str], super().process_message("confirm", **kwargs))
 
     def _cancel(self, **kwargs: object) -> tuple[bool, str]:
-        return True, ""
+        return cast(tuple[bool, str], super().process_message("cancel", **kwargs))
 
-    def register_eventhandler(self, idmsg: str, handler: EventHanlder):
-        handlerlist = self._eventhandler_dict.get(idmsg)
-        if handlerlist is not None:
-            self._eventhandler_dict[idmsg].append(handler)
-        else:
-            self._eventhandler_dict[idmsg] = [handler]
-
-    def filter_message(self, hanlder: EventsHanlder,
-            typ: Literal[-1, 0, 1] = 0, msglst: list[str] | None = None):
-        """filter message to deal with
-
-        Args:
-            typ ():
-                1: filter all message in msglst
-                0: all message
-                -1: filter any message except in msglst
-            msglst(): message list
-            hanlder (): hanlder to deal message
-
-        Returns:
-            Any: the result.
-
-        Raises:
-            ValueError: If `param1` is equal to `param2`.
-        """
-        if msglst is not None:
-            self._msgs_hanlders.append((typ, msglst, hanlder))
-        else:
-            self._msgs_hanlders.append((typ, [], hanlder))
-
+    @override
     def process_message(self, idmsg: str, **kwargs: object):
-        for typ, msglst, hander in self._msgs_hanlders:
-            if typ == 0:
-                ret = hander(idmsg, **kwargs)
-                if ret is not None:
-                    return ret
-            elif typ == 1:
-                if idmsg in msglst:
-                    ret = hander(idmsg, **kwargs)
-                    if ret is not None:
-                        return ret
-            elif typ == -1:
-                if idmsg not in msglst:
-                    ret = hander(idmsg, **kwargs)
-                    if ret is not None:
-                        return ret
-
-        funcs = self._eventhandler_dict.get(idmsg, None)
-        if funcs is not None:
-            ret = None
-            for func in funcs:
-                ret = func(**kwargs)
-            return ret
-
         match idmsg:
             case "beforego":
                 self._beforego(**kwargs)
@@ -195,9 +218,9 @@ class Dialog(Widget, metaclass=abc.ABCMeta):
             case "cancel":
                 return self._cancel(**kwargs)
             case _:
-                if self._owner is not None:
-                    return self._owner.process_message(idmsg, **kwargs)
-                po(f"undeal msg of {idmsg}: {kwargs}")
+                # if self._owner is not None:
+                #     return self._owner.process_message(idmsg, **kwargs)
+                return super().process_message(idmsg, **kwargs)
         return True
 
     @abc.abstractmethod
@@ -219,8 +242,6 @@ class WinBasic(Dialog, metaclass=abc.ABCMeta):
         else:
             w, h = 0, 0
         Dialog.__init__(self, win_attr["Title"], w, h)
-        # self._idctrl_dict: dict[str, object] = {}
-        # self._idctrl_dict: OrderedDict[str, object] = OrderedDict()
 
         self._customctrl_dict: dict[str, et.Element] = {}
 
@@ -269,7 +290,10 @@ class WinBasic(Dialog, metaclass=abc.ABCMeta):
     def delete_control(self, idctrl: str):
         # if idctrl in self._idctrl_dict:
         ctrl = cast(Control, self._idctrl_dict[idctrl])
-        ctrl.destroy()
+        try:
+            ctrl.destroy()
+        except AttributeError:
+            po(f"Warnning: {idctrl} doesn't have destroy")
         del self._idctrl_dict[idctrl]
 
     def get_control(self, idctrl: str):
