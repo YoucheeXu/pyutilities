@@ -110,7 +110,7 @@ class Container(Widget):
             self._eventhandler_dict[idmsg].append(handler)
         else:
             self._eventhandler_dict[idmsg] = [handler]
-        pv(self._eventhandler_dict)
+        # pv(self._eventhandler_dict)
 
     def filter_message(self, hanlder: EventsHanlder,
             typ: Literal[-1, 0, 1] = 0, msglst: list[str] | None = None):
@@ -128,7 +128,7 @@ class Container(Widget):
             self._msgs_hanlders.append((typ, msglst, hanlder))
         else:
             self._msgs_hanlders.append((typ, [], hanlder))
-        pv(self._msgs_hanlders)
+        # pv(self._msgs_hanlders)
 
     def process_message(self, idmsg: str, **kwargs: object) -> object:
         for typ, msglst, hander in self._msgs_hanlders:
@@ -153,7 +153,7 @@ class Container(Widget):
             for func in funcs:
                 ret = func(**kwargs)
             return ret
-        pv(self._eventhandler_dict)
+        # pv(self._eventhandler_dict)
 
         if self._owner is not None:
             return self._owner.process_message(idmsg, **kwargs)

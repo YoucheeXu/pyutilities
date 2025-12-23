@@ -44,7 +44,7 @@ except ImportError:
     import pyutilities.cv2_utilities as cv2u
 
 
-__version__ = "4.4.0"
+__version__ = "5.0"
 IS_WINDOWS = platform.system() == "Windows"
 
 
@@ -1287,8 +1287,8 @@ class tkWin(WinBasic):
 
     @override
     def go(self):
-        Container().register_eventhandler("Exit", self.exit)
-        Container().register_eventhandler("Quit", self.exit)
+        self.register_eventhandler("Exit", self.exit)
+        self.register_eventhandler("Quit", self.exit)
 
         super().back(False)
 
