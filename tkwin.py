@@ -318,7 +318,7 @@ class RadioButtonGroupCtrl(tkControl):
 
 
 class NotebookCtrl(tkControl):
-    def __init__(self, parent: tk.Misc, app: WinBasic, idself: str, *,
+    def __init__(self, parent: tk.Misc, app: WinBasic, owner: Dialog, idself: str, *,
             subctrlcfg_list: list[et.Element], level: int, **options: Any):
         ctrl = ttk.Notebook(parent, **options)
         tkControl.__init__(self, parent, "", idself, ctrl)
@@ -331,11 +331,11 @@ class NotebookCtrl(tkControl):
                 subctrl_cfg, level + 1)
             self._idctrl_list.append(id_)
             # app.debug_print(f"tabCtrl: {subctrl_cfg.tag}")
-            subctrl = cast(tk.Widget, cast(tkControl, sub_ctrl).control)
+            subctrl =cast(tkControl, sub_ctrl).control
             ctrl.add(subctrl, text=subctrl_cfg.attrib["text"])
             for item in list(subctrl_cfg):
                 idctrl_list = self._app.create_controls(sub_ctrl, item,
-                    level + 2)
+                    level + 2, owner)
                 self._idctrl_list.extend(idctrl_list)
 
     @override
@@ -1130,7 +1130,7 @@ class tkWin(WinBasic):
                 ctrl = DialogCtrl(self, ctrl_cfg)
                 self.debug_print()
             case "Notebook":
-                ctrl = NotebookCtrl(master, self, idctrl,
+                ctrl = NotebookCtrl(master, self, owner, idctrl,
                     subctrlcfg_list=list(ctrl_cfg), level=level, **options)
             case _:
                 raise ValueError(f"{tag}: unknown Control")
