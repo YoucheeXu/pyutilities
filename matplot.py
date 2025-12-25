@@ -61,17 +61,22 @@ class MatPlotCtrl(tkControl):
 
         self._size: tuple[float, float] = cast(tuple[float, float], tuple(item / self._dpi for item in size))
         # print(f"size = {self._size}")
+
+        self._title: str = title
+        self._xlabel: str = xlabel
+        self._ylabel: str = ylabel
+
         fig: Figure = Figure(figsize=self._size, dpi=self._dpi)
         self._canvas: FigureCanvasTkAgg = FigureCanvasTkAgg(fig, parent)
         super().__init__(parent, title, idself, self._canvas.get_tk_widget())
         self._ax: Axes = fig.add_subplot()
         fig.subplots_adjust(bottom=0.25)
-        self._create(title, xlabel, ylabel)
+        self._create()
 
-    def _create(self, title: str, xlabel: str, ylabel: str):
-        _ = self._ax.set_title(title)
-        _ = self._ax.set_xlabel(xlabel)
-        _ = self._ax.set_ylabel(ylabel)
+    def _create(self):
+        _ = self._ax.set_title(self._title)
+        _ = self._ax.set_xlabel(self._xlabel)
+        _ = self._ax.set_ylabel(self._ylabel)
         self._ax.grid()
         # self._ax.legend(loc='upper right')
         self._ax.autoscale()
@@ -178,6 +183,15 @@ class MatPlotCtrl(tkControl):
 
         self._xmin = -0.15 if self._xmin == 0 else self._xmin
         _ = self._ax.set_xlim(self._xmin * 1.05, self._xmax * 1.05)
+
+    def clear_canvas(self):
+        """_summary_
+            it will remove grid line, do we need to preserve it?
+        """
+        self._ax.cla()  # plt.cla()
+        # fig.clf()   # plt.clf()
+        self._create()
+        self._linedata_list.clear()
 
     def draw(self):
         self._recalculate_axes_scale()
