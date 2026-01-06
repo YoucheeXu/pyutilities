@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+from os import PathLike
 import sqlite3
 from collections.abc import Sequence, Mapping
 from typing import cast
+from collections.abc import Generator
 # from _typeshed import StrOrBytesPath
 # from _typeshed import AnyPath
-from os import PathLike
 """ Python SQLite日期时间处理全攻略:从入门到精通
 https://yaoweibin.cn/python-sqlite%e6%97%a5%e6%9c%9f%e6%97%b6%e9%97%b4%e5%a4%84%e7%90%86%e5%85%a8%e6%94%bb%e7%95%a5%e4%bb%8e%e5%85%a5%e9%97%a8%e5%88%b0%e7%b2%be%e9%80%9a/
 """
@@ -52,6 +53,7 @@ class SQLite:
 
     def read_version(self):
         """ reads the user_version metadata of an SQLite database.
+
         Return:
             int: 32bits unsinged integer value of user_version (default is 0 for new databases)
         """
@@ -61,8 +63,10 @@ class SQLite:
 
     def write_version(self, target_version: int):
         """ writes a new value to the user_version metadata of an SQLite database.
+
         Args:
             target_version: Target version number (must be a 32-bit unsigned integer in range 0 ~ 4294967295).
+
         Raises:
             ValueError: If target_version is out of the valid range or not an integer.
         """
@@ -83,6 +87,7 @@ class SQLite:
 
     def execute1(self, sql: str, params: SQLParameters = None):
         """ insert/delete/update... with commit
+
         Args:
             params: Optional parameter for parameterized queries, defaulting to None:
                 - Sequence types (e.g., tuple, list): Matched with "?" placeholders by position
@@ -102,11 +107,13 @@ class SQLite:
 
     def execute(self, sql: str, params: SQLParameters = None):
         """ insert/delete/update... without commit
+
         Args:
             params: Optional parameter for parameterized queries, defaulting to None:
                 - Sequence types (e.g., tuple, list): Matched with "?" placeholders by position
                 - Dictionary types (e.g., dict): Matched with ":key" placeholders by key name
                 - None: Indicates a query without parameters
+
         Example:
             >>> execute("CREATE TABLE users (id INT, name TEXT)")
             >>> execute("INSERT INTO users VALUES (?, ?)", (1, "Alice"))
@@ -131,11 +138,20 @@ class SQLite:
         record = cast(tuple[object, ...] | None, self._cur.fetchone())
         return record
 
-    def each(self, query: str):
-        # set of rows read
-        # for row in :
-            # yield row
-        yield from self._cur.execute(query)
+    def each(self, query: str, params: SQLParameters = None) -> Generator[object, object, object]:
+        """ each 
+
+        Args:
+            query: the query statement       
+            params: Optional parameter for parameterized queries, defaulting to None:
+                - Sequence types (e.g., tuple, list): Matched with "?" placeholders by position
+                - Dictionary types (e.g., dict): Matched with ":key" placeholders by key name
+                - None: Indicates a query without parameters
+
+        Returns:
+            return Generator
+        """
+        yield from self._cur.execute(query, params if params is not None else ())
 
     def close(self) -> bool:
         if self._cur:
