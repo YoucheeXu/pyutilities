@@ -159,37 +159,3 @@ class SQLite:
         if self._conn:
             self._conn.close()
         return True
-
-
-if __name__ == "__main__":
-    DB_PATH = "test.db"
-
-    sqlite = SQLite()
-    _ = sqlite.open(DB_PATH)
-
-    # 1. Read initial version (default is 0)
-    initial_version = sqlite.read_version()
-    print(f"Initial user_version: {initial_version}")
-
-    # 2. Write a new version (e.g., 100)
-    sqlite.write_version(100)
-
-    # 3. Verify the updated version
-    updated_version = sqlite.read_version()
-    print(f"Updated user_version: {updated_version}")
-
-    # 4. check version: require version exactly match
-    ret = sqlite.check_version(100, 100)
-    print(f"user_version exactly match: {ret}")
-
-    # 5. check version: require version satisfy mini version
-    ret = sqlite.check_version(99)
-    print(f"user_version satisfy mini version: {ret}")
-
-    # 6. check version: require version not exceed max version
-    ret = sqlite.check_version(0, 99)
-    print(f"user_version not exceed max version 99: {ret}")
-
-    # 7. check version: require version not exceed max version
-    ret = sqlite.check_version(0, 101)
-    print(f"user_version not exceed max version 101: {ret}")

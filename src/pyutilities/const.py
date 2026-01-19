@@ -4,10 +4,7 @@ import sys
 from types import ModuleType
 from typing import Final, Callable
 
-try:
-    from singleton import singleton
-except ImportError:
-    from pyutilies.singleton import singleton
+from src.pyutilities.singleton import singleton
 
 
 @singleton

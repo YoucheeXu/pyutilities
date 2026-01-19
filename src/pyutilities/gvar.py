@@ -2,11 +2,7 @@
 # -*- coding: UTF-8 -*-
 import sys
 
-try:
-    from singleton import singleton
-except ImportError:
-    from pyutilies.singleton import singleton
-
+from src.pyutilities.singleton import singleton
 
 @singleton
 class gvar:

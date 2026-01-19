@@ -1,0 +1,27 @@
+[project]
+name = "pyutilities"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Youchee", email = "youchi.xu@live.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "openpyxl>=3.1.5",
+    "pywin32>=311",
+]
+
+[project.scripts]
+pyutilities = "pyutilities:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "numpy>=2.4.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]
