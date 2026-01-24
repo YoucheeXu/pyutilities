@@ -1,313 +1,584 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-import re
-import inspect
-import time
-from enum import IntEnum
-from functools import wraps
-# from functools import partial
-from typing import override
-from typing import Callable, TypeVar, ParamSpec
-# from typing import Optional, Dict
+"""
+Python Debugging & Logging Utility Toolkit
+==========================================
+Core Features:
+- Enhanced print functions (po/pv/pe) with caller context (line number + filename)
+- Function execution time calculator (time_calc decorator)
+- Extensible class-based logging decorator (Logit) with log levels and file output
+- Inheritable logging extension (EmailLogit) for notification integration
+
+Dependencies:
+- inspect: For retrieving call stack/frame metadata (core for context awareness)
+- re: For regex-based variable/expression parsing from caller code
+- time: For timestamp generation and execution time measurement
+- enum: For typed log level definitions
+- functools.wraps: For preserving original function metadata in decorators
+- typing: For type hints (improves maintainability and IDE support)
+
+Usage Notes:
+- Frame references are explicitly deleted to prevent memory leaks
+- Log levels follow IntEnum (higher value = more severe: INFO < WARN < ERROR)
+"""
+# Standard library imports with purpose annotations
+import re                          # Regular expressions for parsing variable/expression strings
+import inspect                     # Access call stack/frame info (caller line, filename, locals)
+import time                        # Time utilities (timestamps, execution time measurement)
+from enum import IntEnum           # Typed enumeration for log levels (type-safe vs. plain integers)
+from functools import wraps        # Preserve original function metadata in decorators
+from typing import override        # Mark method overrides (type hint for inheritance)
+from typing import (
+    Callable,                      # Type hint for callable objects (functions/methods)
+    TypeVar,                       # Generic type variable for flexible type hints
+    ParamSpec,                     # Generic type for function parameter specifications
+)
 
 
-# 定义一个泛型类型变量，表示任意类型
+# ------------------------------------------------------------------------------
+# Generic Type Definitions (for type-safe decorators/functions)
+# ------------------------------------------------------------------------------
+# Generic type variable representing any arbitrary type
 T = TypeVar('T')
 
+# Generic type variable for index values (used in _resolve_index)
+V = TypeVar('V')
 
-def po(*values: object, endstr: str = "\n") -> None:
-    """
-    打印变量值并附带调用位置信息（行号和文件名）
+# Parameter specification (P) and return type (R) for decorator type safety
+# P: Captures all positional/keyword parameters of a function
+# R: Captures the return type of a function
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def _get_caller_location(skipframe: int = 2):
+    """ get caller location according skipframe
 
     Args:
-        *values: 要打印的一个或多个值
-        endstr: 输出结尾字符，默认为换行符
+        skipframe: the frame number to skip
+
+    Returns:
+        (caller_lineno, caller_filename)
+
     """
-    # 使用inspect模块的公共API获取调用帧信息（更规范）
-    frame = inspect.currentframe()
-    # 获取当前帧的上一帧（即调用者的帧）
-    caller_frame = frame.f_back if frame else None
+    # Initialize location variables (None = unknown location)
+    caller_filename: str = "unknown"
+    caller_lineno: int | str = "unknown"
 
-    filename: str | None = None
-    linenum: int | None = None
-
-    if caller_frame:
-        filename = caller_frame.f_code.co_filename
-        linenum = caller_frame.f_lineno
-        # 帮助垃圾回收
-        del caller_frame
-
-    # 清理当前帧引用
-    if frame:
-        del frame
-
-    # 处理无法获取位置信息的情况
-    file_info = (f"{linenum}@{filename}"
-                 if (linenum is not None and filename is not None)
-                 else "unknown location")
-
-    # 处理值的字符串转换
+    caller_frame = inspect.currentframe()
     try:
-        outputstr = ", ".join(map(str, values))
-    except (TypeError, ValueError, OverflowError) as e:
-        # 捕获字符串转换中常见的特定异常：
-        # TypeError - 类型不支持str()转换
-        # ValueError - 转换过程中值无效
-        # OverflowError - 数值过大无法转换
-        outputstr = f"Error converting values to string: {e}"
+        for _ in range(skipframe):
+            caller_frame = caller_frame.f_back
 
-    # 打印结果
-    print(f"{file_info} ", end="")
-    print(outputstr, end=endstr)
+        # Extract caller metadata if frame is available
+        if caller_frame:
+            frame_info = inspect.getframeinfo(caller_frame)
+            # Full path to caller file
+            caller_filename = frame_info.filename
+            # Line number of caller
+            caller_lineno = frame_info.lineno
+    except:
+        pass
+    finally:  # Release frame reference (critical for memory management)
+        if caller_frame:
+            del caller_frame
+        return (caller_lineno, caller_filename)
 
-
-def pv(p: object, endstr: str = "\n") -> None:
-    """
-    打印变量及其名称（支持多层索引表达式）和调用位置信息，
-    确保正确显示所有层级索引变量的值
+# ------------------------------------------------------------------------------
+# Enhanced Print Functions
+# ------------------------------------------------------------------------------
+def po(*values: object, endstr: str = "\n") -> None:
+    """ Print values with caller location info (line number @ filename)
+    Handles string conversion exceptions to prevent tool crashes during debugging
 
     Args:
-        p: 要打印的变量
-        endstr: 输出结尾字符，默认为换行符
+        *values: Variable-length argument list of objects to print (any type)
+        endstr: Trailing character for the print statement (default: newline)
+
+    Returns:
+        None
+
+    Error Handling:
+        Catches TypeError/ValueError/OverflowError during string conversion
+        and returns a user-friendly error message instead of crashing.
+
+    Memory Notes:
+        Explicitly deletes frame references to avoid cyclic references/memory leaks.
+
     """
-    var_name = ""
+    # Get location (use DEFAULT skip_frames=2: code -> this po() function → actual caller)
+    lineno, filename = _get_caller_location()
+    location_str = f"{lineno}@{filename}"
+
+    # Convert values to string with exception handling
+    try:
+        # Join multiple values into a single string (e.g., po(1, "test") → "1, test")
+        # values_str = ", ".join(str(arg) for arg in args)
+        # output_str = ", ".join(map(str, values))
+        output_str = ", ".join(str(arg) for arg in values) if values else ""
+    except (TypeError, ValueError, OverflowError) as e:
+        # Catch common exceptions during string conversion:
+        # TypeError - type does not support str() conversion
+        # ValueError - invalid value during conversion
+        # OverflowError - numeric value is too large to convert
+        output_str = f"[Conversion Error]: {e}"
+
+    # Print final output (location + values)
+    print(f"{location_str} {output_str}", end=endstr)
+
+
+def _resolve_index(index_str: str, locals_dict: dict[str, V]) -> str:
+    """ Resolve index string with variables/expressions to actual values
+    Converts variable references/expressions to their stringified values (e.g., i=5 → "5").
+    Enhanced: Clearly distinguish empty strings ("") from space-only strings ("  ") with unique markers.
+    Handles comma-separated indexes (e.g. "i,j" → "(0,1)")
+
+    Args:
+        index_str: Index expression string (e.g., "i", "i+1", "5")
+        locals_dict: Caller's local variables (from caller_frame.f_locals)
+
+    Returns:
+        Resolved index value (or original expression if resolution fails)
+        - Empty string ("") → "<EMPTY>"
+        - Space-only string ("  ") → "<SPACE:N>" (N = number of spaces)
+        - Normal strings → quoted (e.g., "  test  " → "'  test  '")
+        - Other values → regular string (e.g., 5 → "5", None → "None")
+
+    WARNING: Uses eval() directly - DO NOT use with untrusted input!
+    """
+    # Helper: Special string formatting for empty/space-only strings
+    def format_special_string(value: V) -> str:
+        """ Format values to distinguish string types from non-str types.
+        
+        Args:
+            value: Original value (before string conversion)
+        
+        Returns:
+            Formatted string with special markers for empty/space-only strings
+        """
+        # Case 1: Non-string values (int, None, float, etc.) → direct string conversion
+        if not isinstance(value, str):
+            return str(value)
+
+        # Case 2: Exact empty string ("")
+        if value == "":
+            return "<EMPTY>"
+
+        # Case 3: String with only whitespace (spaces/tabs/newlines)
+        stripped = value.strip()
+        if stripped == "":
+            return f"<SPACE:{len(value)}>"  # Mark space count (e.g., "<SPACE:2>")
+        
+        # Case 4: Normal string (has non-whitespace content) → quote it
+        return f"'{value}'"
+
+    # Step 1: Handle empty index input (after stripping whitespace)
+    if not index_str.strip():
+        return "<EMPTY>"
+
+    # Step 2: Evaluate expression (preserve original type)
+    # Handle comma-separated indexes first (numpy-style tuple indexing)
+    if "," in index_str:
+        parts = [p.strip() for p in index_str.split(",")]
+        resolved_parts = []
+        for part in parts:
+            try:
+                # Get actual value (e.g., "i" → 0(int))
+                resolved_val = eval(part, globals(), locals_dict)
+                resolved_parts.append(format_special_string(resolved_val))
+            # Step 3: Handle evaluation failures (return original expression formatted)
+            except (NameError, TypeError, ValueError, SyntaxError) as e:
+                po(f"{index_str} eval error: {e}")
+                resolved_parts.append(part)
+        return f"({','.join(resolved_parts)})"
+
+    # Handle single index/expression
+    try:
+        # Evaluate simple expressions (e.g. "i+1", "len(list)")
+        resolved_val = eval(index_str, globals(), locals_dict)
+        return format_special_string(resolved_val)
+    except:
+        # Return original if evaluation fails
+        return index_str
+
+def pv(*args: object, endstr: str = "\n") -> None:
+    """ Print variable name (with resolved indexes), value, and caller location
+    Supports multi-level/indexed variables (e.g., a[i][j], a[i,j], a[i]).
+
+    Args:
+        args: Variable/value to print (can be any object, including indexed collections)
+        endstr: Trailing character for the print statement (default: newline)
+
+    Returns:
+        None
+
+    Key Features:
+        1. Extracts variable name from caller code (via regex)
+        2. Resolves index variables to their actual values (e.g., i=5 → a[5])
+        3. Handles 3 index formats: double-level (a[i][j]), comma-separated (a[i,j]), single-level (a[i])
+        4. Preserves memory safety (deletes frame references)
+    """
+    # Initialize variable name (empty = not found)
+    location_str: str = "unknown@unknown"
+    var_name: str = ""
+
+    # Get current/ caller frames
     current_frame = inspect.currentframe()
     caller_frame = current_frame.f_back if current_frame else None
 
     if caller_frame:
-        # 获取调用者代码行并提取变量名
-        caller_lines = inspect.getframeinfo(caller_frame)[3]
-        if caller_lines:
-            for line in caller_lines:
-                # 移除注释和多余空格
+        # Get caller location (lineno@filename)
+        frame_info = inspect.getframeinfo(caller_frame)
+        location_str = f"{frame_info.lineno}@{frame_info.filename}"
+
+        # Extract caller code lines (list of lines where pv() was called)
+        # caller_code_lines = inspect.getframeinfo(caller_frame)[3]
+        caller_code_lines = frame_info.code_context or []
+        if caller_code_lines:
+            # Iterate through caller lines to find pv() invocation
+            for line in caller_code_lines:
+                 # Clean line: remove comments (everything after #) and extra whitespace
                 cleaned_line = re.sub(r"#.*$", "", line).strip()
-                # 匹配pv(...)表达式，支持带空格的情况
-                if match := re.search(r'\bpv\s*\(\s*(.+?)\s*(?:,|)\s*\)', cleaned_line):
+                # Regex pattern to match pv(...) (supports spaces inside parentheses)
+                # Matches: pv(var), pv( var ), pv(var, end=""), pv( var , end='')
+                # pv_pattern = r'\bpv\s*\(\s*(.+?)\s*(?:,|)\s*\)'
+                pv_pattern = r"pv\(\s*(.+?)\s*\)"
+                if match := re.search(pv_pattern, cleaned_line):
+                    # Extract variable name (ignore end= parameter if present)
                     var_name = match.group(1).split(", end")[0].strip()
-                    break
+                    break   # Stop after first match (avoids multiple line false positives)
 
-        # 处理索引表达式（支持多层索引）
-        # 先尝试匹配双层索引（如a[i][j]）
-        double_index_match = re.search(
-            r"^(.+?)\[([^\]]+)\]\[([^\]]+)\]$",
-            var_name
-        )
+        # --------------------------
+        # Universal Index Resolution (All Formats)
+        # --------------------------
+        # Extract all index parts using regex (works for all formats)
+        index_matches = re.findall(r"\[(.*?)\]", var_name)
+        if index_matches and var_name:
+            # Get base name (everything before first [)
+            base_name = var_name.split("[")[0]
+            resolved_indexes = []
 
-        # 再尝试匹配逗号分隔索引（如a[i,j]）
-        comma_index_match = re.search(
-            r"^(.+?)\[([^\]]+),\s*([^\]]+)\]$",
-            var_name
-        )
+            # Resolve each index part individually
+            for idx_part in index_matches:
+                resolved_idx = _resolve_index(idx_part, caller_frame.f_locals)
+                resolved_indexes.append(f"[{resolved_idx}]")
+            
+            # Rebuild variable name with resolved indexes
+            var_name = base_name + "".join(resolved_indexes)
 
-        # 最后尝试匹配单层索引（如a[i]）
-        single_index_match = re.search(
-            r"^(.+?)\[([^\]]+)\]$",
-            var_name
-        )
-
-        # 处理双层索引
-        if double_index_match:
-            base, idx1, idx2 = double_index_match.groups()
-            resolved_idx1 = _resolve_index(idx1, caller_frame.f_locals)
-            resolved_idx2 = _resolve_index(idx2, caller_frame.f_locals)
-            var_name = f"{base}[{resolved_idx1}][{resolved_idx2}]"
-
-        # 处理逗号分隔索引
-        elif comma_index_match:
-            base, idx1, idx2 = comma_index_match.groups()
-            resolved_idx1 = _resolve_index(idx1, caller_frame.f_locals)
-            resolved_idx2 = _resolve_index(idx2, caller_frame.f_locals)
-            var_name = f"{base}[{resolved_idx1}, {resolved_idx2}]"
-
-        # 处理单层索引
-        elif single_index_match:
-            base, idx = single_index_match.groups()
-            resolved_idx = _resolve_index(idx, caller_frame.f_locals)
-            var_name = f"{base}[{resolved_idx}]"
-
-        # 清理帧引用
-        del caller_frame
-
-    # 清理当前帧引用
     if current_frame:
         del current_frame
+    if caller_frame:
+        del caller_frame 
 
-    # 获取位置信息（行号和文件名）
-    file_info = "unknown location"
-    frame = inspect.currentframe()
-    if frame and frame.f_back:
-        back_frame = frame.f_back
-        filename = back_frame.f_code.co_filename
-        linenum = back_frame.f_lineno
-        file_info = f"{linenum}@{filename}"
-        del back_frame
-    if frame:
-        del frame
-
-    # 打印结果
-    print(f"{file_info} {var_name} = {p}", end=endstr)
-
-
-V = TypeVar('V')  # 用于索引值的泛型
-def _resolve_index(index_expr: str, locals_dict: dict[str, V]) -> str:
-    """解析索引表达式，将变量替换为实际值（处理空值）"""
-    index_expr = index_expr.strip()
-
-    # 检查是否是变量引用
-    if index_expr in locals_dict:
-        val = locals_dict[index_expr]
-        if val is None:
-            return "None"
-        elif isinstance(val, str) and val.strip() == "":
-            return '""'
-        else:
-            return str(val)
-
-    # 检查是否是复杂表达式（尝试简单解析）
-    try:
-        # 尝试评估表达式（仅使用局部变量）
-        # 注意：这有一定风险，仅用于调试场景
-        return str(eval(index_expr, {}, locals_dict))
-    except (NameError, TypeError, ValueError, SyntaxError) as _:
-        # 明确捕获可能的异常类型：
-        # NameError - 表达式中包含未定义的变量
-        # TypeError - 表达式类型错误（如字符串与数字相加）
-        # ValueError - 表达式值无效
-        # SyntaxError - 表达式语法错误
-        return index_expr
+    # Print final output
+    value_str = ", ".join(str(arg) for arg in args) if args else ""
+    print(f"{location_str} {var_name} = {value_str}", end=endstr)
 
 
 def pe(exp: object, end: str = "\n") -> None:
-    """
-    打印表达式及其运行结果（调试专用），支持嵌套函数调用等复杂表达式
+    """ Print expression and its evaluated result (debugging-focused).
+    Extracts the original expression string from caller code (supports nested functions).
 
     Args:
-        exp: 任意表达式（会被求值）
-        end: 输出结尾字符，默认为换行符
+        exp: Evaluated expression result (any object)
+        end: Trailing character for the print statement (default: newline)
+
+    Returns:
+        None
+
+    Key Features:
+        1. Uses balanced parentheses regex to handle nested functions (e.g., pe(len(filter(...))))
+        2. Extracts original expression string from caller code
+        3. Gracefully handles missing frame info (uses "expression" as fallback name)
     """
-    exp_name: str | None = None
-    # 先获取当前帧，添加空检查
+    # Initialize expression name (fallback = "expression")
+    exp_name: str = "expression"
+    location_str: str = "unknown@unknown"
+
+    # Get current/caller frame
     current_frame = inspect.currentframe()
-    if current_frame is None:
-        # 无法获取帧信息时直接使用默认名称
-        exp_name = "expression"
-    else:
-        # 获取调用者帧，同样添加空检查
-        caller_frame = current_frame.f_back
-        if caller_frame:
-            caller_lines = inspect.getframeinfo(caller_frame)[3]
+    caller_frame = current_frame.f_back if current_frame else None
 
-            if caller_lines:
-                # 改进的正则：使用平衡括号匹配来处理嵌套函数调用
-                pattern = r"\bpe\s*\(([^()]*+(?:\([^()]*+\)[^()]*+)*+)\)"
+    if caller_frame:
+        frame_info = inspect.getframeinfo(caller_frame)
+        location_str = f"{frame_info.lineno}@{frame_info.filename}"
 
-                for line in caller_lines:
-                    cleaned_line = re.sub(r"#.*$", "", line).strip()
-                    match = re.search(pattern, cleaned_line)
+        # Extract caller code lines
+        # caller_code_lines = inspect.getframeinfo(caller_frame)[3]
+        caller_code_lines = frame_info.code_context or []
 
-                    if match:
-                        exp_name = match.group(1).rstrip(',').strip()
-                        break
+        if caller_code_lines:
+            # Regex pattern for balanced parentheses (handles nested functions)
+            # Matches: pe(any_expression) where any_expression can have nested ()
+            pattern = r"\bpe\s*\(([^()]*+(?:\([^()]*+\)[^()]*+)*+)\)"
+            # pe_pattern = r"pe\(\s*((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\s*\)"
 
-        # 显式删除帧引用，帮助垃圾回收
+            # Iterate through caller lines to find pe() invocation
+            for line in caller_code_lines:
+                # Clean line: remove comments and extra whitespace
+                cleaned_line = re.sub(r"#.*$", "", line).strip()
+                # Match pe() expression
+                if match := re.search(pattern, cleaned_line):
+                    # Extract expression (remove trailing commas if present)
+                    exp_name = match.group(1).rstrip(',').strip()
+                    break   # Stop after first match
+
+    # Clean up frame references (memory safety)
+    if caller_frame:
+        del caller_frame
+    if current_frame:
         del current_frame
 
-    # 处理未匹配到表达式的情况
-    if exp_name is None:
-        exp_name = "expression"
-
-    # 打印表达式和结果
-    print(f"{exp_name} = {exp}", end=end)
+    # Print final output
+    print(f"{location_str} {exp_name} = {exp}", end=end)
 
 
-# 定义参数规格变量（表示任意参数）
-P = ParamSpec("P")
-# 定义返回值类型变量（表示任意返回值）
-R = TypeVar("R")
+# ------------------------------------------------------------------------------
+# Execution Time Decorator
+# ------------------------------------------------------------------------------
 def time_calc(func: Callable[P, R]) -> Callable[P, R]:
-    """装饰器：计算并打印函数的执行时间"""
+    """ Decorator to measure and print a function's execution time.
+    Preserves original function metadata (name, docstring, signature) via @wraps.
+
+    Args:
+        func: Function to decorate (any callable with parameters P and return type R)
+
+    Returns:
+        Callable[P, R]: Wrapped function with timing logic
+
+    Features:
+        1. Precise timing (6 decimal places for seconds)
+        2. No side effects (returns original function's result)
+        3. Preserves function metadata (critical for debugging/introspection)
+    """
+    # Preserve original function metadata (prevents loss of __name__, __doc__, etc.)
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        # Record start time (Unix timestamp in seconds)
         start_time = time.time()
-        result = func(*args, **kwargs)  # 执行被装饰的函数
-        exec_time = time.time() - start_time
-        print(f"{func.__name__}花费的时间是：{exec_time:.6f}秒")
-        return result
+        try:
+            # Execute the original function (pass all positional/keyword args)
+            # Return original function result (no side effects)
+            return func(*args, **kwargs)
+        finally:
+            # Calculate elapsed time
+            end_time = time.time()
+            exec_time = end_time - start_time
+            # Print execution time (6 decimal places for precision)
+            print(f"{func.__name__} execution time: {exec_time:.6f} seconds")
     return wrapper
 
 
+# ------------------------------------------------------------------------------
+# Logging System (Class-Based Decorator)
+# ------------------------------------------------------------------------------
 class LogLevel(IntEnum):
+    """ Enumeration for log severity levels (typed for safety).
+    Higher integer values = more severe log levels.
+
+    Attributes:
+        INFO: General informational messages (default)
+        WARN: Warning messages (non-critical issues)
+        ERROR: Error messages (critical failures)
+    """
+    # Lowest severity: general info (e.g., "Function X called")
     INFO = 1
+    # Medium severity: warnings (e.g., "Low memory")
     WARN = 2
+    # Highest severity: errors (e.g., "File not found")
     ERROR = 3
 
 
 class Logit():
+    """ Class-based decorator for flexible logging with context-aware metadata.
+    Core features: log levels, timestamped output, file logging, and extensibility.
+
+    Design Notes:
+        - Implements __call__ to act as a decorator
+        - Uses composition over inheritance (easily extendable via subclasses)
+        - Separates core logging logic (_log) from notification logic (_notify)
+        - Memory-safe (deletes frame references to prevent leaks)
+
+    Attributes:
+        _level: Minimum log level to output (e.g., LogLevel.WARN → ignore INFO)
+        _logfile: Path to log file (empty = no file output)
+    """
     def __init__(self, level: LogLevel = LogLevel.INFO, logfile: str = ""):
+        """ Initialize Logit decorator with log level and file path.
+
+        Args:
+            level: Minimum log severity to output (default: LogLevel.INFO)
+            logfile: Path to log file (empty string = disable file logging)
+        """
         self._level: LogLevel = level
         self._logfile: str = logfile
 
-    def __call__(self, func: Callable[P, R]) -> Callable[P, R]: # 接受函数
+    def __call__(self, func: Callable[P, R]) -> Callable[P, R]:
+        """ Make Logit a decorator: wrap target function with logging logic.
+        Logs a "function called" message before executing the target function.
+
+        Args:
+            func: Function to decorate (any callable with parameters P and return type R)
+
+        Returns:
+            Callable[P, R]: Wrapped function with logging logic
+        """
+        # Preserve original function metadata
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            # print(__name__)
-            # fun_name = sys._getframe().f_code.co_name
-            fun_name = func.__name__
-            self._log(self._level, f"{fun_name}() was called")
+            # Log function invocation (uses decorator's configured log level)
+            self._log(self._level, f"{func.__name__}() was called")
+            # Execute original function and return result
             return func(*args, **kwargs)
-        return wrapper  # 返回函数
+        return wrapper  # Return wrapped function
 
-    def _notify(self):
-        pass
+    def _notify(self, log_str: str):
+        """Reserved extension point for notifications (e.g., email, SMS)
+        Override this method in subclasses to add notification logic (no-op by default).
+
+        Args:
+            log_str: Human-readable log message string
+        """
+        # Print to console
+        print(log_str)
 
     def _log(self, level: LogLevel, msg: str):
-        if level >= self._level:
-            # print(__file__)
-            # print(sys._getframe().f_lineno)
-            timestr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-            # filename = sys._getframe().f_code.co_filename
-            filename: str | None = None
-            linenum: int | None = None
-            frame = inspect.currentframe()
-            # 获取当前帧的上一帧（即调用者的帧）
-            caller_frame = frame.f_back if frame else None
-            if caller_frame:
-                filename = caller_frame.f_code.co_filename
-                linenum = caller_frame.f_lineno
-                # 帮助垃圾回收
-                del caller_frame
+        """ Core logging logic: format and output log messages (console + file).
+        Only processes logs with severity ≥ self._level (e.g., WARN ignores INFO).
 
-            # 清理当前帧引用
-            if frame:
-                del frame
-            # linenum = sys._getframe().f_back.f_back.f_lineno
-            # 处理无法获取位置信息的情况
-            file_info = (f"{linenum:03d}@{filename}"
-                 if (linenum is not None and filename is not None)
-                 else "unknown location")
-            logstring = f"{timestr} {file_info} [{level}]: {msg}"
-            print(logstring)
-            if self._logfile:
-                with open(self._logfile, 'a', encoding='utf8') as opened_file:
-                    _ = opened_file.write(logstring + '\n')
-            self._notify()
+        Args:
+            level: Severity level of the log message (LogLevel enum)
+            msg: Human-readable log message string
 
+        Key Steps:
+            1. Check log level threshold
+            2. Generate timestamp and caller location
+            3. Format log string (timestamp + location + level + message)
+            4. Output to console
+            5. Write to log file (if configured)
+            6. Trigger notification (via _notify)
+        """
+        # Skip logs below the configured severity level
+        if level < self._level:
+            return
+
+        # --------------------------
+        # Generate Log Metadata
+        # --------------------------
+        # Human-readable timestamp (YYYY-MM-DD HH:MM:SS)
+        timestr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+
+        lineno, filename = _get_caller_location(3)
+        if isinstance(lineno, int):
+            location_str = f"{lineno:03d}@{filename}"
+        else:
+            location_str = f"{lineno}@{filename}"
+
+        # --------------------------
+        # Format & Output Log
+        # --------------------------
+        # Use level NAME (e.g., "INFO") instead of integer for readability
+        log_str = f"{timestr} {location_str} [{level.name}]: {msg}"
+
+        # Trigger notification logic (extension point)
+        self._notify(log_str)
+
+        # Write to log file if path is provided
+        if self._logfile:
+            # Use UTF-8 encoding to support non-ASCII characters
+            # Append mode ("a") to preserve existing logs
+            with open(self._logfile, 'a', encoding='utf8') as opened_file:
+                # Write log string + newline (ignore return value with _)
+                _ = opened_file.write(log_str + '\n')
+
+    # --------------------------
+    # Convenience Methods (Log Level Shortcuts)
+    # --------------------------
     def info(self, msg: str):
+        """Shortcut method to log an INFO-level message."""
         self._log(LogLevel.INFO, msg)
 
     def warn(self, msg: str):
+        """Shortcut method to log a WARN-level message."""
         self._log(LogLevel.WARN, msg)
 
     def err(self, msg: str):
+        """Shortcut method to log an ERROR-level message."""
         self._log(LogLevel.ERROR, msg)
 
 
 class EmailLogit(Logit):
-    def __init__(self, email: str, level: LogLevel = LogLevel.INFO):
+    """ Inherited Logit decorator with email notification support.
+    Extends base Logit by overriding _notify() to send emails on log events.
+
+    Additional Attributes:
+        _email: Recipient email address for notifications
+        _username: user name for emali login
+        _password: password for emali login
+        _smtp_server: smtp server without port, (e.g., "smtp.example.com")
+        _smtp_port: smtp server port, (e.g., "587")
+    """
+    def __init__(
+        self, 
+        email: str, 
+        username: str, 
+        password: str, 
+        smtp_server: str,
+        level: LogLevel = LogLevel.INFO
+    ):
+        """ Initialize EmailLogit with recipient email and log level.
+
+        Args:
+            email: Recipient email address (e.g., "dev@example.com")
+            username: user name for emali login
+            password: password for emali login
+            smtp_server: smtp server with port, (e.g., "smtp.example.com: 587")
+            level: Minimum log severity to output (default: LogLevel.INFO)
+        """
+        # Store email/smtp credentials (used in _notify)
         self._email: str = email
+        self._username: str = username
+        self._password: str = password
+
+        # Parse SMTP server/port
+        server_parts = smtp_server.split(":")
+        self._smtp_server: str = server_parts[0].strip()
+        self._smtp_port: int = int(server_parts[1].strip())
+
+        # Call parent class constructor (disable file logging by default)
         super().__init__(level, "")
 
     @override
-    def _notify(self):
-        # send a email to self._email
-        pass
+    def _notify(self, log_str: str):
+        """ Override parent _notify() to implement email sending logic.
+        Placeholder implementation (replace with actual email code in production).
+
+        Implementation Notes:
+            - Use smtplib/email libraries to send emails
+            - Include log details (timestamp, level, message) in email body
+            - Add error handling for email delivery failures
+        """
+        # Always print to console first
+        super()._notify(log_str)
+
+        import smtplib
+        from email.mime.text import MIMEText
+        try:
+            # Create email message
+            msg = MIMEText(f"Log Notification: {log_str}")
+            msg['Subject'] = f"[{self._level.name}] Log Alert"
+            msg['From'] = self._username
+            msg['To'] = self._email
+
+            # SMTP connection
+            with smtplib.SMTP(self._smtp_server, self._smtp_port, timeout=10) as server:
+                _ = server.starttls()  # Enforce TLS (security)
+                _ = server.login(self._username, self._password)
+                _ = server.send_message(msg)
+        except smtplib.SMTPException as e:
+            # Catch all SMTP-related errors (connection, login, send)
+            print(f"[Email Notification Error]: {type(e).__name__}: {str(e)}")
+        except Exception as e:
+            # Catch-all for unexpected errors
+            print(f"[Email Notification Unexpected Error]: {type(e).__name__}: {str(e)}")
