@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-""" Pytest test suite for logit.py
-# Run full test suite with coverage
-uv run pytest --cov=src.pyutilities.logit .\tests\test_logit.py -v
-uv run pytest --cov=src.pyutilities.logit --cov-report=html tests/test_logit.py
-
-# Run only EmailLogit tests (focus on your modifications)
-uv run pytest --cov=src.pyutilities.logit .\tests\test_logit.py -v -k "email_logit"
+""" 
+    uv run pytest --cov=src.pyutilities.logit .\tests\test_logit.py -v
 """
 import time
 import inspect

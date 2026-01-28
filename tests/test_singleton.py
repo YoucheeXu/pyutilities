@@ -1,16 +1,14 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-import sys
+"""
+    uv run pytest --cov=src.pyutilities.singleton .\tests\test_singleton.py -v
+"""
 import threading
-import time
-from typing import TypedDict, Unpack, TypeVar, Any
+from typing import TypeVar, Any
 
 import pytest
 
 from src.pyutilities.singleton import singleton
-"""
-    uv run pytest --cov=src.pyutilities.singleton .\tests\test_singleton.py -v
-"""
 
 # 定义泛型类型变量（用于测试类的类型注解）
 T = TypeVar("T")

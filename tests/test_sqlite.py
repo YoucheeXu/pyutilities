@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """
     uv run pytest --cov=src.pyutilities.sqlite .\tests\test_sqlite.py -v
-    uv run pytest --cov=src.pyutilities.sqlite .\tests\test_sqlite.py --cov-report=html
 """
 import sqlite3
+import tempfile
 
 import pytest
 from pytest import CaptureFixture
@@ -50,7 +50,11 @@ def test_open_method():
     original_conn = sql._conn  # Save reference to original connection
 
     # Scenario 2: Second open() → triggers if self._conn: self._conn.close()
-    status, msg = sql.open("test.db", sqlite3.PARSE_COLNAMES)
+    # Create a temporary file for the SQLite database
+    temp_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+    temp_db_path = temp_db.name
+    temp_db.close()
+    status, msg = sql.open(temp_db_path, sqlite3.PARSE_COLNAMES)
     assert status == 1
 
     # Verify original connection is closed (core coverage for self._conn.close())
@@ -64,7 +68,11 @@ def test_open_method():
     assert sql._conn != original_conn
 
     # Scenario 3: Open with byte path (existing conn is closed again)
-    status, msg = sql.open(b"test_bytes.db")
+    temp_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+    temp_db_path = temp_db.name
+    temp_db.close()
+    temp_db_path_bytes = temp_db_path.encode()
+    status, msg = sql.open(temp_db_path_bytes)
     assert status == 1
 
     # Cleanup

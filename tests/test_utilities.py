@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
+"""
+    uv run pytest --cov=src.pyutilities.utilities .\tests\test_utilities.py -v
+"""
 import sys
 import pytest
 
@@ -11,9 +14,6 @@ from src.pyutilities.utilities import (
     legal_name,
     current_platform
 )
-"""
-    uv run pytest --cov=src.pyutilities.utilities .\tests\test_utils.py -v
-"""
 
 
 # ---------------------- 测试 is_illegal_var ----------------------

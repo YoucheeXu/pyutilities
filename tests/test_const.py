@@ -1,3 +1,8 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+"""
+    uv run pytest --cov=src.pyutilities.const .\tests\test_const.py -v
+"""
 import sys
 from types import ModuleType
 
@@ -5,9 +10,7 @@ import pytest
 
 from src.pyutilities.singleton import singleton
 from src.pyutilities import const
-"""
-    uv run pytest --cov=src.pyutilities.const .\tests\test_const.py -v
-"""
+
 
 
 # ---------------------- 测试前置/后置处理 ----------------------

@@ -1,13 +1,13 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
+"""
+    uv run pytest --cov=src.pyutilities.gvar .\tests\test_gvar.py -v
+"""
 import sys
 import pytest
 from types import ModuleType
 
 from src.pyutilities import gvar
-"""
-    uv run pytest --cov=src.pyutilities.gvar .\tests\test_gvar.py -v
-"""
 
 
 @pytest.fixture(scope="function")
