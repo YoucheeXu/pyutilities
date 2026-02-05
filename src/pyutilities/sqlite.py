@@ -20,7 +20,7 @@ Key Features:
 from os import PathLike
 import sqlite3
 from collections.abc import Sequence, Mapping
-from typing import cast
+from typing import Literal, TypeVar, cast
 from collections.abc import Generator
 
 # Type aliases for SQLite parameterized queries and database paths
@@ -28,6 +28,8 @@ from collections.abc import Generator
 SQLParameters = Sequence[object] | Mapping[str, object] | None
 # Supported SQLite database path types (string/bytes/PathLike)
 StrOrBytesPath = str | bytes | PathLike[str] | PathLike[bytes]
+_IsolationLevel = Literal["DEFERRED", "EXCLUSIVE", "IMMEDIATE"] | None
+_ConnectionT = TypeVar("_ConnectionT", bound=sqlite3.Connection)
 
 
 class SQLite:
@@ -45,7 +47,16 @@ class SQLite:
         """ Initialize an empty SQLite instance with no active connection."""
         self._conn: sqlite3.Connection | None = None
 
-    def open(self, database: StrOrBytesPath, detect_types: int = 0):
+    def open(self, database: StrOrBytesPath, *,
+            timeout: float = 5.0,
+            detect_types: int = 0,
+            isolation_level: _IsolationLevel = "DEFERRED",
+            check_same_thread: bool = True,
+            factory: type[_ConnectionT],
+            cached_statements: int = 128,
+            uri: bool = False,
+            autocommit: bool = False,
+        ):
         """ Establish or re-establish a persistent connection to an SQLite database.
 
         Closes any existing connection before creating a new one (idempotent operation),
@@ -57,26 +68,74 @@ class SQLite:
                 - Byte sequence path (e.g., b"data.db", suitable for paths with special encodings)
                 - Special value ":memory:" indicating an in-memory database
                 - URI-formatted string (when uri=True, e.g., "file:mydb?mode=ro")
-            detect_types: Bitmask of SQLite type detection flags (e.g., sqlite3.PARSE_DECLTYPES,
-                sqlite3.PARSE_COLNAMES) to enable automatic type conversion between SQLite and Python.
+            timeout: Timeout (in seconds) for acquiring the SQLite database lock. If the lock
+                cannot be acquired within this duration, sqlite3.OperationalError will be raised.
+            detect_types: Bitmask of SQLite type detection flags to enable automatic type conversion
+                between SQLite column values and Python types. Common flags:
+                - sqlite3.PARSE_DECLTYPES: Parse column types from CREATE TABLE statements
+                - sqlite3.PARSE_COLNAMES: Parse type hints from column aliases in queries
+            isolation_level: SQLite transaction isolation level. Valid values:
+                - "DEFERRED" (default): Start transaction only on first write operation
+                - "IMMEDIATE": Acquire write lock immediately (prevents other writes)
+                - "EXCLUSIVE": Acquire exclusive lock (prevents other reads/writes)
+                - None: Disable transactions (equivalent to autocommit mode)
+            check_same_thread: If True (default), SQLite enforces that the connection is only used
+                by the thread that created it (prevents thread-safety issues). Set to False for
+                multi-threaded access (use with caution and proper synchronization).
+            factory: Custom connection factory class that inherits from sqlite3.Connection.
+                Allows customization of connection behavior (e.g., custom error handling).
+            cached_statements: Number of precompiled SQL statements to cache for reuse (default 128).
+                Higher values improve performance for repeated queries but use more memory.
+            uri: If True, interprets the `database` parameter as a URI-formatted string, enabling
+                URI query parameters (e.g., "file:mydb.db?mode=ro&cache=shared").
+            autocommit: If True, disables implicit transaction management—each SQL statement is
+                committed immediately after execution. Defaults to False (transactions must be
+                explicitly committed/rolled back).
 
         Returns:
-            tuple[int, str]: Status code (1 = success) and human-readable success message.
+            tuple[int, str]: Status code and human-readable message:
+                - Status code: 1 = connection successful, -1 = connection failed
+                - Message: Descriptive text indicating success/failure and target database
+
+        Raises:
+            sqlite3.Error: Generic SQLite error (e.g., invalid path, permission denied, lock timeout)
+            TypeError: If parameters are passed incorrectly (e.g., positional args for keyword-only params)
 
         Example:
             >>> db = SQLite()
-            >>> status, msg = db.open(":memory:", sqlite3.PARSE_DECLTYPES)
-            >>> print(status, msg)
+            >>> # Open in-memory database with type parsing and custom connection factory
+            >>> status, msg = db.open(":memory:",
+            ...                      detect_types=sqlite3.PARSE_DECLTYPES,
+            ...                      factory=sqlite3.Connection)
             1 OK to open :memory:!
         """
-        # Close existing connection if open (idempotent)
+        # Close existing connection if it exists (idempotent: safe to call even if conn is None)
+        # This ensures only one active connection is maintained at all times
         if self._conn:
             self._conn.close()
+            self._conn = None  # Clear reference to closed connection
 
         # Create new persistent connection (reused for all subsequent operations)
-        self._conn = sqlite3.connect(database, detect_types=detect_types)
+        # All keyword-only parameters are passed to sqlite3.connect() to configure the connection
+        self._conn = sqlite3.connect(database,
+            timeout = timeout,
+            detect_types = detect_types,
+            isolation_level = isolation_level,
+            check_same_thread = check_same_thread,
+            factory = factory,
+            cached_statements = cached_statements,
+            uri = uri,
+            autocommit = autocommit)
 
-        return 1, f"OK to open {database}!"
+        # Configure row factory to return dictionary-like Row objects (access columns by name)
+        # This makes result handling more intuitive than default tuple-based rows
+        self._conn.row_factory = sqlite3.Row
+
+        # Verify connection status and return appropriate status/msg
+        if self._conn:
+            return 1, f"OK to open {database}!"
+        else:
+            return -1, f"Fail to open {database}!"
 
     def read_version(self):
         """ Retrieve the user_version metadata value from the SQLite database.
@@ -132,11 +191,6 @@ class SQLite:
         if not self._conn:
             raise RuntimeError("Call open() first to initialize connection!")
 
-        # Validate version type and range (32-bit unsigned integer constraints)
-        if not isinstance(target_version, int):
-            raise ValueError(
-                "user_version must be an integer between 0 and 4294967295 (32-bit unsigned)"
-            )
         if target_version < 0 or target_version > 4294967295:
             raise ValueError(
                 f"Invalid user_version: {target_version}. Must be between 0 and 4294967295."
@@ -264,6 +318,7 @@ class SQLite:
             >>> db.execute("INSERT INTO users VALUES (1, 'Alice')")
             >>> db.commit()  # Persist the insert
         """
+        assert self._conn is not None
         self._conn.commit()
 
     def get(self, query: str):
@@ -294,7 +349,7 @@ class SQLite:
 
         # Create cursor, execute query, fetch first row
         cursor = self._conn.cursor()
-        cursor.execute(query)
+        _ = cursor.execute(query)
         result = cast(tuple[object, ...] | None, cursor.fetchone())
         cursor.close()
 
