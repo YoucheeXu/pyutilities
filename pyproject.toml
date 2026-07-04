@@ -9,8 +9,16 @@ authors = [
 requires-python = ">=3.13"
 dependencies = []
 
-[project.scripts]
-pyutilities_simple = "pyutilities_simple:main"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/YoucheeXu/pyutilities"
+Issues = "https://github.com/YoucheeXu/pyutilities/issues"
 
 [build-system]
 requires = ["hatchling"]
