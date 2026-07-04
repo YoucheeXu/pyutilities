@@ -9,7 +9,7 @@ import tempfile
 import pytest
 from pytest import CaptureFixture
 
-from src.pyutilities.sqlite import SQLite
+from pyutilities.sqlite import SQLite
 
 # --------------------------
 # Fixtures (Reusable Test Setup)

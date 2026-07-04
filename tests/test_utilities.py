@@ -6,7 +6,7 @@
 import sys
 import pytest
 
-from src.pyutilities.utilities import (
+from pyutilities.utilities import (
     is_valid_var,
     hex_str_int,
     hex_lst_to_int,

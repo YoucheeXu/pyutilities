@@ -8,7 +8,7 @@ from typing import TypeVar, Any
 
 import pytest
 
-from src.pyutilities.singleton import singleton
+from pyutilities.singleton import singleton
 
 # 定义泛型类型变量（用于测试类的类型注解）
 T = TypeVar("T")

@@ -25,7 +25,7 @@ from pytest import (
 )
 
 # Import the module
-from src.pyutilities.logit import (
+from pyutilities.logit import (
     _get_caller_location,
     _resolve_index,
     po, pv, pe, time_calc,

@@ -7,7 +7,7 @@ import sys
 import pytest
 from types import ModuleType
 
-from src.pyutilities import gvar
+from pyutilities import gvar
 
 
 @pytest.fixture(scope="function")

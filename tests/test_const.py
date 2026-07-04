@@ -8,8 +8,8 @@ from types import ModuleType
 
 import pytest
 
-from src.pyutilities.singleton import singleton
-from src.pyutilities import const
+from pyutilities.singleton import singleton
+from pyutilities import const
 
 
 
