@@ -52,7 +52,7 @@ class SQLite:
             detect_types: int = 0,
             isolation_level: _IsolationLevel = "DEFERRED",
             check_same_thread: bool = True,
-            factory: type[_ConnectionT],
+            factory: type[_ConnectionT] = sqlite3.Connection,
             cached_statements: int = 128,
             uri: bool = False,
             autocommit: bool = False,
@@ -191,9 +191,14 @@ class SQLite:
         if not self._conn:
             raise RuntimeError("Call open() first to initialize connection!")
 
+        if not isinstance(target_version, int):
+            raise ValueError(
+                    f"Invalid user_version: {target_version}. Must be between 0 and 4294967295 (32-bit unsigned)."
+                )
+
         if target_version < 0 or target_version > 4294967295:
             raise ValueError(
-                f"Invalid user_version: {target_version}. Must be between 0 and 4294967295."
+                f"Invalid user_version: {target_version}. Must be between 0 and 4294967295 (32-bit unsigned)."
             )
 
         # Execute PRAGMA to set version and commit immediately
@@ -318,7 +323,7 @@ class SQLite:
             >>> db.execute("INSERT INTO users VALUES (1, 'Alice')")
             >>> db.commit()  # Persist the insert
         """
-        assert self._conn is not None
+        assert self._conn is not None, "Call open() first to initialize connection!"
         self._conn.commit()
 
     def get(self, query: str):

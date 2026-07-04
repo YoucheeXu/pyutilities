@@ -1,15 +1,15 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 """
-    uv run pytest --cov=src.pyutilities.const .\tests\test_const.py -v
+    uv run pytest --cov=pyutilities_simple.const .\tests\test_const.py -v
 """
 import sys
 from types import ModuleType
 
 import pytest
 
-from pyutilities.singleton import singleton
-from pyutilities import const
+from pyutilities_simple.singleton import singleton
+from pyutilities_simple import const
 
 
 
@@ -20,7 +20,7 @@ def reset_const_module():
     测试夹具：彻底清空用户常量，返回全局唯一的const模块实例
     """
     # 从sys.modules获取全局唯一实例（避免__import__重新加载）
-    const_mod = sys.modules["src.pyutilities.const"]
+    const_mod = sys.modules["pyutilities_simple.const"]
     # 强制清空所有用户常量
     const_mod.clear_user_constants()
     # 验证清空结果（确保列表为空）
@@ -37,8 +37,8 @@ def test_singleton_behavior(reset_const_module: ModuleType):
     # 方式1：夹具返回的实例
     const_mod1 = reset_const_module
     # 方式2：从sys.modules获取（模拟其他模块导入）
-    # const_mod2 = __import__("src.pyutilities.const").pyutilities.const
-    const_mod2 = sys.modules["src.pyutilities.const"]
+    # const_mod2 = __import__("pyutilities_simple.const").pyutilities.const
+    const_mod2 = sys.modules["pyutilities_simple.const"]
 
     # 核心验证：ID相同+对象相同
     assert id(const_mod1) == id(const_mod2)
@@ -141,7 +141,7 @@ def test_builtin_attributes(reset_const_module: ModuleType):
     assert const_mod.__version__ == "1.0.0"
     assert const_mod.__description__ == "A singleton-based constant management module"
     assert hasattr(const_mod, "__file__")
-    assert const_mod.__name__ == "src.pyutilities.const"
+    assert const_mod.__name__ == "pyutilities_simple.const"
 
     # 清空后验证内置属性仍存在
     const_mod.clear_user_constants()

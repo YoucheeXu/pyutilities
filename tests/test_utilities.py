@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 """
-    uv run pytest --cov=src.pyutilities.utilities .\tests\test_utilities.py -v
+    uv run pytest --cov=pyutilities_simple.utilities .\tests\test_utilities.py -v
 """
 import sys
 import pytest
 
-from pyutilities.utilities import (
+from pyutilities_simple.utilities import (
     is_valid_var,
     hex_str_int,
     hex_lst_to_int,

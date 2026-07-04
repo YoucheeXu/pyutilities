@@ -1,14 +1,14 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 """
-    uv run pytest --cov=src.pyutilities.singleton .\tests\test_singleton.py -v
+    uv run pytest --cov=pyutilities_simple.singleton .\tests\test_singleton.py -v
 """
 import threading
 from typing import TypeVar, Any
 
 import pytest
 
-from pyutilities.singleton import singleton
+from pyutilities_simple.singleton import singleton
 
 # 定义泛型类型变量（用于测试类的类型注解）
 T = TypeVar("T")
@@ -58,7 +58,7 @@ def reset_singleton_instances():
     Yields:
         None: 仅用于控制测试用例的执行流程
     """
-    from src.pyutilities.singleton import SingletonWrapper
+    from pyutilities_simple.singleton import SingletonWrapper
     
     # 保存原始状态
     original_instances: dict[type[Any], Any] = SingletonWrapper._instances.copy()

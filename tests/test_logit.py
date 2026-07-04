@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """ 
-    uv run pytest --cov=src.pyutilities.logit .\tests\test_logit.py -v
+    uv run pytest --cov=pyutilities_simple.logit .\tests\test_logit.py -v
 """
 import time
 import inspect
@@ -25,7 +25,7 @@ from pytest import (
 )
 
 # Import the module
-from pyutilities.logit import (
+from pyutilities_simple.logit import (
     _get_caller_location,
     _resolve_index,
     po, pv, pe, time_calc,

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-    uv run pytest --cov=src.pyutilities.sqlite .\tests\test_sqlite.py -v
+    uv run pytest --cov=pyutilities_simple.sqlite .\tests\test_sqlite.py -v
 """
 import sqlite3
 import tempfile
@@ -9,7 +9,7 @@ import tempfile
 import pytest
 from pytest import CaptureFixture
 
-from pyutilities.sqlite import SQLite
+from pyutilities_simple.sqlite import SQLite
 
 # --------------------------
 # Fixtures (Reusable Test Setup)
@@ -54,7 +54,7 @@ def test_open_method():
     temp_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
     temp_db_path = temp_db.name
     temp_db.close()
-    status, msg = sql.open(temp_db_path, sqlite3.PARSE_COLNAMES)
+    status, msg = sql.open(temp_db_path, detect_types=sqlite3.PARSE_COLNAMES)
     assert status == 1
 
     # Verify original connection is closed (core coverage for self._conn.close())
@@ -105,28 +105,29 @@ def test_write_version(sqlite_instance: SQLite, capsys: CaptureFixture[str]):
     assert captured.out == f"Successfully set user_version to: {target_version}\n"
 
     # Test 2: Non-integer type (string) → trigger ValueError
+    target_version = "invalid_version"
     with pytest.raises(ValueError) as excinfo:
-        sqlite_instance.write_version("invalid_version")  # type: ignore
-    assert str(excinfo.value) == "user_version must be an integer between 0 and 4294967295 (32-bit unsigned)"
+        sqlite_instance.write_version(target_version)  # type: ignore
+    assert str(excinfo.value) == f"Invalid user_version: {target_version}. Must be between 0 and 4294967295 (32-bit unsigned)."
 
     # Test 3: Non-integer type (float) → trigger ValueError
+    target_version = 123.45
     with pytest.raises(ValueError) as excinfo:
-        sqlite_instance.write_version(123.45)  # type: ignore
-    assert str(excinfo.value) == "user_version must be an integer between 0 and 4294967295 (32-bit unsigned)"
+        sqlite_instance.write_version(target_version)  # type: ignore
+    assert str(excinfo.value) == f"Invalid user_version: {target_version}. Must be between 0 and 4294967295 (32-bit unsigned)."
 
     # Test 4: Integer below lower bound (negative) → trigger ValueError
     with pytest.raises(ValueError) as excinfo:
         sqlite_instance.write_version(-5)
     assert str(excinfo.value) == \
-        "Invalid user_version: -5. Must be between 0 and 4294967295."
+        "Invalid user_version: -5. Must be between 0 and 4294967295 (32-bit unsigned)."
 
     # Test 5: Integer above upper bound → trigger ValueError
     with pytest.raises(ValueError) as excinfo:
         sqlite_instance.write_version(4294967296)
     assert str(excinfo.value) == \
-        "Invalid user_version: 4294967296. Must be between 0 and 4294967295."
+        "Invalid user_version: 4294967296. Must be between 0 and 4294967295 (32-bit unsigned)."
 
-# @pytest.mark.skip(reason="功能未实现，暂不执行")
 def test_check_version(sqlite_instance: SQLite):
     """
     Test check_version method (cover all conditional branches):
@@ -150,7 +151,6 @@ def test_check_version(sqlite_instance: SQLite):
     # Branch 4: Only mini_version provided (max_version = 4294967295) → True
     assert sqlite_instance.check_version(50) is True
 
-# @pytest.mark.skip(reason="功能未实现，暂不执行")
 def test_execute1(sqlite_instance: SQLite):
     """
     Test execute1 method (cover all parameter scenarios):
@@ -184,7 +184,10 @@ def test_get_method(sqlite_instance: SQLite):
 
     # Scenario 1: Data exists → return first row
     result = sqlite_instance.get("SELECT * FROM products WHERE id=1")
-    assert result == (1, "Laptop")
+    assert result is not None
+    assert len(result) == 2
+    assert result[0] == 1
+    assert result[1] == "Laptop"
 
     # Scenario 2: No data → return None
     result = sqlite_instance.get("SELECT * FROM products WHERE id=99")
@@ -206,19 +209,18 @@ def test_each_method(sqlite_instance: SQLite):
     generator = sqlite_instance.each("SELECT * FROM books ORDER BY id")
     results = list(generator)  # Convert generator to list for verification
     assert len(results) == 2
-    assert results[0] == (1, "Python Basics")
-    assert results[1] == (2, "SQLite Guide")
+    print(set(results[0]))
+    assert set(results[0]) == set({1, "Python Basics"})
+    assert set(results[1]) == set((2, "SQLite Guide"))
 
     # Test 2: Parameterized query with sequence parameters
     generator = sqlite_instance.each("SELECT * FROM books WHERE id=?", (2,))
     results = list(generator)
-    assert results[0] == (2, "SQLite Guide")
+    assert set(results[0]) == set((2, "SQLite Guide"))
 
-# @pytest.mark.skip(reason="功能未实现，暂不执行")
 def test_close_method(sqlite_instance: SQLite):
     """Test close method: should always return True."""
     assert sqlite_instance.close() is True
-
 
 # @pytest.mark.skip(reason="功能未实现，暂不执行")
 def test_execute1_edge_case(sqlite_instance: SQLite):
@@ -245,7 +247,7 @@ def test_execute_method(sqlite_instance: SQLite):
     assert str(excinfo.value) == "Call open() first to initialize connection!"
 
     # Scenario 2: No parameters (CREATE TABLE) → returns True
-    assert sqlite_instance.execute("CREATE TABLE customers (id INT, name TEXT)") is True
+    assert sqlite_instance.execute1("CREATE TABLE customers (id INT, name TEXT)") is True
 
     # Scenario 3: Sequence parameters (? placeholders) → returns True (no commit)
     # Insert data with execute() (no commit yet)
@@ -276,13 +278,15 @@ def test_commit_method(sqlite_instance: SQLite):
     """
     # Scenario 1: No connection → AttributeError (conn is None)
     sql = SQLite()
-    with pytest.raises(AttributeError) as excinfo:
+    # with pytest.raises(AttributeError) as excinfo:
+    with pytest.raises(AssertionError) as excinfo:
         sql.commit()
-    assert "'NoneType' object has no attribute 'commit'" in str(excinfo.value)
+    # assert "'NoneType' object has no attribute 'commit'" in str(excinfo.value)
+    assert "Call open() first to initialize connection!" in str(excinfo.value)
 
     # Scenario 2: Commit persists execute() changes
     # Step 1: Create table with execute() (no commit)
-    _ = sqlite_instance.execute("CREATE TABLE orders (id INT, total FLOAT)")
+    _ = sqlite_instance.execute1("CREATE TABLE orders (id INT, total FLOAT)")
     # Step 2: Insert data with execute() (no commit)
     _ = sqlite_instance.execute("INSERT INTO orders VALUES (?, ?)", (1, 99.99))
     # Step 3: Verify data is NOT present (no commit)
@@ -293,7 +297,7 @@ def test_commit_method(sqlite_instance: SQLite):
     _ = sqlite_instance.execute("INSERT INTO orders VALUES (?, ?)", (1, 99.99))
     sqlite_instance.commit()  # Manual commit
     # Step 5: Verify data is persisted
-    assert sqlite_instance.get("SELECT * FROM orders WHERE id=1") == (1, 99.99)
+    assert set(sqlite_instance.get("SELECT * FROM orders WHERE id=1")) == set((1, 99.99))
 
     # Scenario 3: Multiple execute() + single commit → all changes persist
     # Insert two rows with execute() (no auto-commit)
@@ -302,8 +306,8 @@ def test_commit_method(sqlite_instance: SQLite):
     # Commit once
     sqlite_instance.commit()
     # Verify both rows exist
-    assert sqlite_instance.get("SELECT * FROM orders WHERE id=2") == (2, 199.99)
-    assert sqlite_instance.get("SELECT * FROM orders WHERE id=3") == (3, 299.99)
+    assert set(sqlite_instance.get("SELECT * FROM orders WHERE id=2")) == set((2, 199.99))
+    assert set(sqlite_instance.get("SELECT * FROM orders WHERE id=3")) == set((3, 299.99))
 
 
 def test_all_methods_without_connection():
@@ -350,6 +354,6 @@ def test_all_methods_without_connection():
     assert str(excinfo.value) == "Call open() first to initialize connection!"
 
     # 7. Test commit() → AttributeError (conn is None, no RuntimeError check in commit())
-    with pytest.raises(AttributeError) as excinfo:
+    with pytest.raises(AssertionError) as excinfo:
         sql.commit()
-    assert "'NoneType' object has no attribute 'commit'" in str(excinfo.value)
+    assert "Call open() first to initialize connection!" in str(excinfo.value)

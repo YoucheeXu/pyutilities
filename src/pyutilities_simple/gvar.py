@@ -4,7 +4,7 @@ import sys
 from types import ModuleType
 from typing import Final, Callable, override, cast
 
-from src.pyutilities.singleton import singleton
+from pyutilities_simple.singleton import singleton
 
 @singleton
 class GlobalVarModule(ModuleType):

@@ -1,13 +1,13 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 """
-    uv run pytest --cov=src.pyutilities.gvar .\tests\test_gvar.py -v
+    uv run pytest --cov=pyutilities_simple.gvar .\tests\test_gvar.py -v
 """
 import sys
 import pytest
 from types import ModuleType
 
-from pyutilities import gvar
+from pyutilities_simple import gvar
 
 
 @pytest.fixture(scope="function")
@@ -18,7 +18,7 @@ def reset_gvar():
         全局变量单例实例
     """
     # 获取全局唯一实例
-    gvar_inst = sys.modules["src.pyutilities.gvar"]
+    gvar_inst = sys.modules["pyutilities_simple.gvar"]
     # 清空非只读变量
     gvar_inst.clear_vars()
     # 验证内置只读变量保留
@@ -34,9 +34,9 @@ def test_singleton_behavior(reset_gvar: ModuleType) -> None:
     # 方式1：夹具返回的实例
     inst1 = reset_gvar
     # 方式2：从sys.modules获取
-    inst2 = sys.modules["src.pyutilities.gvar"]
+    inst2 = sys.modules["pyutilities_simple.gvar"]
     # 方式3：直接导入
-    from src.pyutilities import gvar as inst3
+    from pyutilities_simple import gvar as inst3
 
     # 验证唯一性
     assert inst1 is inst2
@@ -148,11 +148,11 @@ def test_var_deletion(reset_gvar: ModuleType) -> None:
 def test_cross_module_share(reset_gvar: ModuleType) -> None:
     """测试跨模块共享变量（模拟不同模块导入）"""
     # 1. 模块1导入并设置变量
-    import src.pyutilities.gvar as gvar1
+    import pyutilities_simple.gvar as gvar1
     gvar1.shared_var = "cross_module"
 
     # 2. 模块2导入并获取变量
-    import src.pyutilities.gvar as gvar2
+    import pyutilities_simple.gvar as gvar2
     assert gvar2.shared_var == "cross_module"
 
     # 3. 验证是同一个实例
